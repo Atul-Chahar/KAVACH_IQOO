@@ -53,6 +53,12 @@ data class ShieldUiState(
     /** Set when capture itself failed. Honest message, never a pretence of listening. */
     val failureReason: String? = null,
     val escalated: Boolean = false,
+    /**
+     * The user pressed "I'm fine" on a warning. Suppresses the alert surface for
+     * the rest of this call only — capture continues, and a fresh HIGH_RISK in a
+     * later session warns again. Dismissing is not stopping.
+     */
+    val alertDismissed: Boolean = false,
     val incidents: List<Incident> = emptyList(),
 ) {
     val band: RiskBand get() = assessment.band

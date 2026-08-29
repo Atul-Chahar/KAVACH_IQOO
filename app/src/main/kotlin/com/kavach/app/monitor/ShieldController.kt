@@ -7,7 +7,9 @@ import com.kavach.domain.RiskEngine
 import com.kavach.domain.Signal
 import com.kavach.domain.TacticLexicon
 import com.kavach.domain.TranscriptSource
+import com.kavach.domain.Verdict
 import com.kavach.domain.VerdictSchema
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.BufferOverflow
@@ -52,8 +54,24 @@ class ShieldController(
      * Bounded, DROP_OLDEST: if adjudication is slower than speech we skip
      * windows rather than lag (CLAUDE.md hard rule 7). A slow consumer must
      * degrade quality, never block the producer.
+     *
+     * Created per session and never shared across them. As a member it survived
+     * [start], so up to two transcripts from the previous call were still queued
+     * when the next one began — immediately after `engine.reset()` — and the new
+     * conversation inherited the old one's evidence.
      */
-    private val adjudicationQueue = Channel<String>(capacity = 2, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    private var adjudicationQueue: Channel<String>? = null
+
+    /**
+     * The most recent Tier-2 verdict, held rather than emitted once.
+     *
+     * [RiskEngine.merge] is a pure function, so a merged assessment that is only
+     * published lives exactly until the next tick republishes the Tier-1 score
+     * over it — under a second. Keeping the verdict here means every subsequent
+     * tick merges it again, which is the difference between the model affecting
+     * what the user sees and the model being decorative.
+     */
+    private var llmVerdict: Verdict? = null
 
     private var sessionJob: Job? = null
     private var sessionStartMs = 0L
@@ -69,8 +87,12 @@ class ShieldController(
         stop()
         engine.reset()
         recorder.clear()
+        llmVerdict = null
         source = transcriptSource
         sessionStartMs = clock()
+
+        val queue = Channel<String>(capacity = 2, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+        adjudicationQueue = queue
 
         _state.value =
             ShieldUiState(
@@ -83,17 +105,21 @@ class ShieldController(
         sessionJob =
             scope.launch {
                 val ticker = launch { tick() }
-                val judge = launch { adjudicate() }
+                val judge = launch { adjudicate(queue) }
 
                 runCatching {
                     transcriptSource.start()
                     transcriptSource.transcripts().collect { window ->
                         val assessment = engine.onTranscript(window, elapsedMs())
                         recorder.onAssessment(assessment, clock())
-                        adjudicationQueue.trySend(window.text)
-                        publish(assessment, window.text)
+                        queue.trySend(window.text)
+                        publish(merged(assessment), window.text)
                     }
                 }.onFailure { error ->
+                    // Cancellation is how a session ends normally. Reporting it as a
+                    // capture failure would put a false error on screen every time
+                    // the user pressed Stop.
+                    if (error is CancellationException) throw error
                     // Never crash the session on a source failure — degrade honestly.
                     _state.update { it.copy(monitoring = false, failureReason = error.message ?: "capture stopped") }
                 }
@@ -121,6 +147,8 @@ class ShieldController(
     private fun finishSession() {
         if (!_state.value.monitoring) return
         recorder.endSession(clock())
+        adjudicationQueue?.close()
+        adjudicationQueue = null
         source = null
         _state.update { it.copy(monitoring = false, incidents = recorder.all()) }
         // The source's callbackFlow owns asynchronous recogniser teardown in
@@ -142,7 +170,7 @@ class ShieldController(
     private suspend fun tick() {
         while (coroutineContext.isActive) {
             delay(TICK_MS)
-            publish(engine.assess(elapsedMs()), _state.value.transcriptPreview)
+            publish(merged(engine.assess(elapsedMs())), _state.value.transcriptPreview)
         }
     }
 
@@ -151,8 +179,8 @@ class ShieldController(
      * or a dead model must be invisible to the user, who keeps seeing the
      * Tier-1 score (docs/ARCHITECTURE.md 3).
      */
-    private suspend fun adjudicate() {
-        for (transcript in adjudicationQueue) {
+    private suspend fun adjudicate(queue: Channel<String>) {
+        for (transcript in queue) {
             adjudicateOne(transcript)
         }
     }
@@ -162,8 +190,23 @@ class ShieldController(
         val engineRef = adjudicator ?: return
         val raw = runCatching { engineRef.adjudicate(transcript) }.getOrNull()
         val verdict = VerdictSchema.parseOrNull(raw, knownFamilies) ?: return
-        val merged = engine.merge(engine.assess(elapsedMs()), verdict)
-        publish(merged, _state.value.transcriptPreview)
+        llmVerdict = verdict
+        publish(merged(engine.assess(elapsedMs())), _state.value.transcriptPreview)
+    }
+
+    /** Tier 1, with Tier 2 folded in if it has ever spoken this session. */
+    private fun merged(assessment: RiskAssessment): RiskAssessment =
+        llmVerdict?.let { engine.merge(assessment, it) } ?: assessment
+
+    /**
+     * "I'm fine." Silences the warning for the rest of this call without
+     * silencing Kavach: capture continues, the score keeps moving, and the
+     * report still records what was heard. Dismissing a warning is not the same
+     * verb as stopping the app, and wiring them to one handler — as the session
+     * footer did — quietly taught the user that neither could be trusted.
+     */
+    fun dismissAlert() {
+        _state.update { it.copy(alertDismissed = true) }
     }
 
     private fun publish(
@@ -176,6 +219,7 @@ class ShieldController(
                 tactics = assessment.matchedFamilies.mapNotNull { lexicon.displayName(it, hindi) },
                 tacticEvidence = rank(assessment.matchedFamilies, assessment.evidence),
                 elapsedMs = elapsedMs(),
+                alertDismissed = current.alertDismissed && assessment.band == RiskBand.HIGH_RISK,
                 transcriptPreview = transcript.takeLast(TRANSCRIPT_PREVIEW_CHARS),
                 escalated = assessment.band == RiskBand.HIGH_RISK,
             )
