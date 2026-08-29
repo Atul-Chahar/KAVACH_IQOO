@@ -30,7 +30,8 @@ Re-measure with `./gradlew :domain:test --tests '*FixtureCorpusTest*' -i`; the r
 
 | File | What it is |
 |---|---|
-| `CLAUDE.md` | **Agent operating rules. Read first.** Hard constraints, stack, definition of done. |
+| `docs/HANDOFF.md` | **Start here.** Current state, what is broken, what to do next. |
+| `CLAUDE.md` | **Agent operating rules.** Hard constraints, stack, definition of done. |
 | `docs/PRD.md` | What we're building and what is deliberately out of scope |
 | `docs/ARCHITECTURE.md` | Layers, the Android call-audio constraint, the three-tier engine, models |
 | `docs/SAFETY.md` | Safety and privacy requirements, as testable rules |
