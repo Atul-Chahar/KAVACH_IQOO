@@ -1,0 +1,56 @@
+[
+  {
+    "speaker": "CALLER",
+    "text": "Hello, main HDFC bank ke fraud department se bol raha hoon. Aapke account se ek suspicious transaction detect hui hai, twenty four thousand rupees.",
+    "startMs": 0,
+    "endMs": 12432
+  },
+  {
+    "speaker": "VICTIM",
+    "text": "Maine to koi transaction nahi ki.",
+    "startMs": 13032,
+    "endMs": 16344
+  },
+  {
+    "speaker": "CALLER",
+    "text": "Exactly sir, isiliye call kiya. Agar humne ise abhi block nahi kiya to aapka account block ho jayega aur khaata freeze kar diya jayega.",
+    "startMs": 16944,
+    "endMs": 28512
+  },
+  {
+    "speaker": "VICTIM",
+    "text": "To kya karna hoga?",
+    "startMs": 29112,
+    "endMs": 31368
+  },
+  {
+    "speaker": "CALLER",
+    "text": "Main abhi transaction reverse karta hoon. Aapke registered mobile par ek code aayega. Turant bataiye, warna reversal window band ho jayegi.",
+    "startMs": 31968,
+    "endMs": 43752
+  },
+  {
+    "speaker": "VICTIM",
+    "text": "Ruko, message aa raha hai.",
+    "startMs": 44352,
+    "endMs": 47160
+  },
+  {
+    "speaker": "CALLER",
+    "text": "Haan, message me jo aaya code hai, wo OTP bataiye. Jaldi kijiye, do minute ka time hai.",
+    "startMs": 47760,
+    "endMs": 56136
+  },
+  {
+    "speaker": "VICTIM",
+    "text": "Yeh to likha hai kisi ko mat batana.",
+    "startMs": 56736,
+    "endMs": 60120
+  },
+  {
+    "speaker": "CALLER",
+    "text": "Sir wo general warning hoti hai. Main bank se hi bol raha hoon. Aap OTP batao, aur apna UPI PIN bhi confirm kar dijiye taaki main verify kar sakoon.",
+    "startMs": 60720,
+    "endMs": 74160
+  }
+]

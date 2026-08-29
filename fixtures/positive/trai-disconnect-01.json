@@ -1,0 +1,50 @@
+[
+  {
+    "speaker": "CALLER",
+    "text": "This call is from TRAI. Your mobile number will be disconnected within two hours due to illegal activity registered against it.",
+    "startMs": 0,
+    "endMs": 9840
+  },
+  {
+    "speaker": "VICTIM",
+    "text": "What activity?",
+    "startMs": 10440,
+    "endMs": 12456
+  },
+  {
+    "speaker": "CALLER",
+    "text": "Your Aadhaar is linked to a second SIM which has been used for harassment complaints. There is an FIR. I am transferring you to the cyber crime branch.",
+    "startMs": 13056,
+    "endMs": 25704
+  },
+  {
+    "speaker": "CALLER2",
+    "text": "Sub Inspector speaking. Sir, this is a non bailable matter. An arrest warrant may be issued today.",
+    "startMs": 26304,
+    "endMs": 35832
+  },
+  {
+    "speaker": "VICTIM",
+    "text": "I have not done anything.",
+    "startMs": 36432,
+    "endMs": 39072
+  },
+  {
+    "speaker": "CALLER2",
+    "text": "We understand. But the case is confidential, please do not tell anyone, and do not disconnect the call. Keep your camera on. You are under surveillance until verification is complete.",
+    "startMs": 39672,
+    "endMs": 55416
+  },
+  {
+    "speaker": "VICTIM",
+    "text": "Okay.",
+    "startMs": 56016,
+    "endMs": 57792
+  },
+  {
+    "speaker": "CALLER2",
+    "text": "For clearance you will need to transfer to this account for verification. It is a refundable amount held in a safe custody account. Also install this app, AnyDesk, and turn screen sharing on so our officer can verify your bank records.",
+    "startMs": 58392,
+    "endMs": 77016
+  }
+]

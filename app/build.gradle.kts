@@ -106,7 +106,7 @@ val syncTacticLexicon by tasks.registering(Copy::class) {
 // engine is tuned against are exactly the ones the demo plays.
 val syncFixtures by tasks.registering(Copy::class) {
     from(rootProject.file("fixtures")) {
-        include("**/*.txt")
+        include("**/*.txt", "**/*.mp3", "**/*.json")
         exclude("README.md")
     }
     into(layout.projectDirectory.dir("src/main/assets/fixtures"))

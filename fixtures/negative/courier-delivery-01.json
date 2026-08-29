@@ -1,0 +1,50 @@
+[
+  {
+    "speaker": "CALLER",
+    "text": "Hello sir, main Delhivery se bol raha hoon. Aapka parcel delivery ke liye aaya hai, main aapke building ke neeche hoon.",
+    "startMs": 0,
+    "endMs": 9672
+  },
+  {
+    "speaker": "VICTIM",
+    "text": "Haan, third floor pe aa jaiye.",
+    "startMs": 10272,
+    "endMs": 13440
+  },
+  {
+    "speaker": "CALLER",
+    "text": "Sir lift kaam kar rahi hai?",
+    "startMs": 14040,
+    "endMs": 16752
+  },
+  {
+    "speaker": "VICTIM",
+    "text": "Haan haan.",
+    "startMs": 17352,
+    "endMs": 19128
+  },
+  {
+    "speaker": "CALLER",
+    "text": "Theek hai. Delivery ke time ek OTP aayega aapke phone par, wo mujhe dikha dijiyega ya bata dijiyega, tabhi delivery complete hogi.",
+    "startMs": 19728,
+    "endMs": 30960
+  },
+  {
+    "speaker": "VICTIM",
+    "text": "Theek hai, aa jao.",
+    "startMs": 31560,
+    "endMs": 34008
+  },
+  {
+    "speaker": "CALLER",
+    "text": "Aur sir agar aap ghar par nahi hote to security ke paas chhod doon?",
+    "startMs": 34608,
+    "endMs": 39816
+  },
+  {
+    "speaker": "VICTIM",
+    "text": "Nahi main ghar par hi hoon.",
+    "startMs": 40416,
+    "endMs": 43032
+  }
+]

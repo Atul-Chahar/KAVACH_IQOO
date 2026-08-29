@@ -1,0 +1,44 @@
+[
+  {
+    "speaker": "CALLER",
+    "text": "Namaste, main local police station se bol raha hoon, passport verification ke liye.",
+    "startMs": 0,
+    "endMs": 6864
+  },
+  {
+    "speaker": "VICTIM",
+    "text": "Ji boliye.",
+    "startMs": 7464,
+    "endMs": 9384
+  },
+  {
+    "speaker": "CALLER",
+    "text": "Aap ghar par kab milenge? Constable aayega document verification ke liye, aapka Aadhaar card aur rent agreement chahiye hoga.",
+    "startMs": 9984,
+    "endMs": 20112
+  },
+  {
+    "speaker": "VICTIM",
+    "text": "Kal subah theek rahega.",
+    "startMs": 20712,
+    "endMs": 23256
+  },
+  {
+    "speaker": "CALLER",
+    "text": "Theek hai, kal gyarah baje aa jayenge. Aap ghar walon ko bata dijiyega. Agar koi confusion ho to aap station aa kar mil sakte hain, ya thane ke landline par call kar sakte hain.",
+    "startMs": 23856,
+    "endMs": 38832
+  },
+  {
+    "speaker": "VICTIM",
+    "text": "Ji theek hai, dhanyavaad.",
+    "startMs": 39432,
+    "endMs": 42240
+  },
+  {
+    "speaker": "CALLER",
+    "text": "Aur sir, hum kabhi phone par paise ya OTP nahi maangte. Agar koi aisa kare to turant complaint kijiye.",
+    "startMs": 42840,
+    "endMs": 51936
+  }
+]

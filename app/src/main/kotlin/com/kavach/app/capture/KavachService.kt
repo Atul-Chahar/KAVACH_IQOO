@@ -369,10 +369,7 @@ class KavachService : Service() {
             getSystemService(Vibrator::class.java)
         }
 
-    private fun createChannels() {
-        runCatching { getSystemService(NotificationManager::class.java)?.deleteNotificationChannel(LEGACY_CHANNEL) }
-        KavachNotifications.ensureChannels(this)
-    }
+    private fun createChannels() = KavachNotifications.ensureChannels(this)
 
     /** Minimal shim so the deprecated stopForeground overload is isolated in one place. */
     private object ServiceCompat {
@@ -388,7 +385,6 @@ class KavachService : Service() {
 
     companion object {
         private const val TAG = "KavachService"
-        private const val LEGACY_CHANNEL = "kavach_monitoring"
 
         /** Distinct request codes, so one PendingIntent never overwrites another. */
         private const val REQUEST_OPEN = 0

@@ -1,0 +1,56 @@
+[
+  {
+    "speaker": "CALLER",
+    "text": "Good afternoon, I am calling from your bank's fraud monitoring team regarding a transaction on your card ending 4471.",
+    "startMs": 0,
+    "endMs": 9648
+  },
+  {
+    "speaker": "VICTIM",
+    "text": "Okay, go ahead.",
+    "startMs": 10248,
+    "endMs": 12672
+  },
+  {
+    "speaker": "CALLER",
+    "text": "We flagged a transaction of eighteen thousand rupees at an online merchant this morning. Can you confirm whether this was you?",
+    "startMs": 13272,
+    "endMs": 23400
+  },
+  {
+    "speaker": "VICTIM",
+    "text": "No, that wasn't me.",
+    "startMs": 24000,
+    "endMs": 26616
+  },
+  {
+    "speaker": "CALLER",
+    "text": "Thank you. I have blocked the card as a precaution. You will not be liable for that transaction.",
+    "startMs": 27216,
+    "endMs": 35760
+  },
+  {
+    "speaker": "VICTIM",
+    "text": "How do I know this call is genuine?",
+    "startMs": 36360,
+    "endMs": 39552
+  },
+  {
+    "speaker": "CALLER",
+    "text": "That is a very fair question. We will never ask for your OTP, PIN or password, and I will not ask you for any code. If you prefer, please hang up and call us back on the number on your card. You can also visit your nearest branch. Your reference number for this call is 8829104.",
+    "startMs": 40152,
+    "endMs": 65664
+  },
+  {
+    "speaker": "VICTIM",
+    "text": "Alright, that's reassuring.",
+    "startMs": 66264,
+    "endMs": 69120
+  },
+  {
+    "speaker": "CALLER",
+    "text": "Take your time, and you can discuss with your family before doing anything. A replacement card will reach you in five working days.",
+    "startMs": 69720,
+    "endMs": 80136
+  }
+]
