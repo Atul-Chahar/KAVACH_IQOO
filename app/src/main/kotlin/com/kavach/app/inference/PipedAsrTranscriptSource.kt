@@ -1,7 +1,9 @@
 package com.kavach.app.inference
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.os.Build
@@ -110,6 +112,16 @@ class PipedAsrTranscriptSource(
             val micJob =
                 launch(Dispatchers.IO) {
                     try {
+                        // Checked at the lint-visible boundary: MicCapture.run carries
+                        // @RequiresPermission(RECORD_AUDIO). The service refuses to
+                        // start without the grant, so a missing permission here is a
+                        // state to report, not crash on.
+                        if (context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) !=
+                            PackageManager.PERMISSION_GRANTED
+                        ) {
+                            close(IllegalStateException("microphone permission was revoked mid-session"))
+                            return@launch
+                        }
                         mic.run()
                     } catch (e: CancellationException) {
                         throw e
@@ -170,6 +182,13 @@ class PipedAsrTranscriptSource(
 
         fun open(context: Context) {
             runCatching {
+                // Flow entry refuses SDK_INT < S before this can run (see
+                // transcripts()); the guard satisfies the API-31 contract lint
+                // cannot infer across the callbackFlow boundary.
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+                    alive = false
+                    return
+                }
                 recognizer =
                     SpeechRecognizer.createOnDeviceSpeechRecognizer(context).apply {
                         setRecognitionListener(listener)
@@ -260,14 +279,19 @@ class PipedAsrTranscriptSource(
                         SpeechRecognizer.ERROR_SPEECH_TIMEOUT,
                         -> beginCycle()
 
-                        ERROR_LANGUAGE_NOT_SUPPORTED, ERROR_LANGUAGE_UNAVAILABLE -> {
-                            retire("language pack not installed (error $error)")
-                            publishLive()
-                        }
-
                         else -> {
-                            Log.w(TAG, "[$language] recogniser error $error")
-                            main.postDelayed({ if (!stopped) beginCycle() }, ERROR_BACKOFF_MS)
+                            // The two language-pack misses (API 31 constants 12 and 13)
+                            // retire this ear instead of retrying: no amount of
+                            // backoff installs a missing model. Kept out of the
+                            // IntDef-exhaustive switch above because the compile-time
+                            // constants are matched as plain ints.
+                            if (error == ERROR_LANGUAGE_NOT_SUPPORTED || error == ERROR_LANGUAGE_UNAVAILABLE) {
+                                retire("language pack not installed (error $error)")
+                                publishLive()
+                            } else {
+                                Log.w(TAG, "[$language] recogniser error $error")
+                                main.postDelayed({ if (!stopped) beginCycle() }, ERROR_BACKOFF_MS)
+                            }
                         }
                     }
                 }
