@@ -13,6 +13,7 @@ import com.kavach.app.monitor.ShieldUiState
 import com.kavach.domain.ModelCatalog
 import com.kavach.domain.ModelSpec
 import com.kavach.domain.ModelState
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -38,7 +39,9 @@ class ShieldViewModel(
 
     fun freeSpaceBytes(): Long = app.models.usableSpaceBytes()
 
-    fun refreshModel() = app.models.refresh(modelSpec)
+    fun refreshModel() {
+        viewModelScope.launch(Dispatchers.IO) { app.models.refresh(modelSpec) }
+    }
 
     /**
      * The app cannot fetch this itself — it has no INTERNET permission. It hands
@@ -50,9 +53,24 @@ class ShieldViewModel(
         viewModelScope.launch { app.models.import(uri, modelSpec) }
     }
 
-    fun deleteModel() = app.models.delete(modelSpec)
+    fun deleteModel() {
+        viewModelScope.launch(Dispatchers.IO) { app.models.delete(modelSpec) }
+    }
 
     fun liveCaptureAvailable(): Boolean = app.isLiveCaptureAvailable()
+
+    /**
+     * Resolves a family id to plain language in the device locale, so the report
+     * can print "Caller claims to be law enforcement" rather than an enum name.
+     * Falls back to the id with its underscores opened out, which is still
+     * readable if the lexicon ever drops a family the log remembers.
+     */
+    fun tacticName(familyId: String): String =
+        app.lexicon.displayName(familyId, Locale.getDefault().language == "hi")
+            ?: familyId.replace('_', ' ')
+
+    /** Reveals the matched words in-place. Nothing is written anywhere. */
+    fun setShowTranscript(show: Boolean) = app.controller.setShowTranscript(show)
 
     /** Live monitoring runs in the foreground service, so it survives the screen going off. */
     fun startLive() = KavachService.start(getApplication())

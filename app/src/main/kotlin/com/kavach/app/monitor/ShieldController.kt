@@ -4,6 +4,7 @@ import com.kavach.domain.IncidentRecorder
 import com.kavach.domain.RiskAssessment
 import com.kavach.domain.RiskBand
 import com.kavach.domain.RiskEngine
+import com.kavach.domain.Signal
 import com.kavach.domain.TacticLexicon
 import com.kavach.domain.TranscriptSource
 import com.kavach.domain.VerdictSchema
@@ -15,9 +16,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlin.coroutines.coroutineContext
 
 /** Which pipeline is feeding the engine. Both run through identical downstream code. */
@@ -39,7 +40,12 @@ class ShieldController(
     private val recorder = IncidentRecorder(lexicon)
     private val knownFamilies = lexicon.families.map { it.id }.toSet()
 
-    private val _state = MutableStateFlow(ShieldUiState())
+    /**
+     * Seeded with the lexicon's own shape so the home screen can state what the
+     * engine is before any session has run — the counts on screen are read from
+     * the same data the scorer uses, never duplicated as constants.
+     */
+    private val _state = MutableStateFlow(lexiconFacts(ShieldUiState()))
     val state: StateFlow<ShieldUiState> = _state.asStateFlow()
 
     /**
@@ -72,7 +78,7 @@ class ShieldController(
                 mode = mode,
                 engineName = transcriptSource.engineName,
                 degradedReason = if (adjudicator == null) DEGRADED_NO_MODEL else null,
-            )
+            ).let(::lexiconFacts)
 
         sessionJob =
             scope.launch {
@@ -115,11 +121,11 @@ class ShieldController(
     private fun finishSession() {
         if (!_state.value.monitoring) return
         recorder.endSession(clock())
-        val finished = source
         source = null
         _state.update { it.copy(monitoring = false, incidents = recorder.all()) }
-        // Best-effort: releasing the recogniser must not throw into the caller.
-        runCatching { finished?.let { runBlocking { it.stop() } } }
+        // The source's callbackFlow owns asynchronous recogniser teardown in
+        // awaitClose. Cancelling the session job closes that flow; never use
+        // runBlocking from a UI/service callback.
     }
 
     fun report(formatTimestamp: (Long) -> String): String = recorder.renderReport(formatTimestamp)
@@ -168,6 +174,7 @@ class ShieldController(
             current.copy(
                 assessment = assessment,
                 tactics = assessment.matchedFamilies.mapNotNull { lexicon.displayName(it, hindi) },
+                tacticEvidence = rank(assessment.matchedFamilies, assessment.evidence),
                 elapsedMs = elapsedMs(),
                 transcriptPreview = transcript.takeLast(TRANSCRIPT_PREVIEW_CHARS),
                 escalated = assessment.band == RiskBand.HIGH_RISK,
@@ -175,11 +182,45 @@ class ShieldController(
         }
     }
 
-    private fun elapsedMs() = clock() - sessionStartMs
-
-    private fun MutableStateFlow<ShieldUiState>.update(block: (ShieldUiState) -> ShieldUiState) {
-        value = block(value)
+    /**
+     * The user asking to see the words Kavach matched on. Off by default and
+     * never persisted: the preview lives in memory for the length of the
+     * session and is written over, like the audio it came from.
+     */
+    fun setShowTranscript(show: Boolean) {
+        _state.update { it.copy(showTranscript = show) }
     }
+
+    /**
+     * Turns an assessment into the numbered rows the alerting screens draw.
+     *
+     * [RiskAssessment.matchedFamilies] already arrives ranked strongest-first
+     * and [RiskAssessment.evidence] newest-first, so this only has to pair them
+     * up — the ordering the user sees is the engine's own, not a second opinion
+     * invented in the UI.
+     */
+    private fun rank(
+        families: List<String>,
+        evidence: List<Signal>,
+    ): List<TacticEvidence> =
+        families.mapNotNull { family ->
+            lexicon.displayName(family, hindi)?.let { name ->
+                TacticEvidence(
+                    displayName = name,
+                    familyId = family,
+                    lastSeenElapsedMs = evidence.firstOrNull { it.family == family }?.timestampMs ?: 0L,
+                )
+            }
+        }
+
+    private fun lexiconFacts(state: ShieldUiState) =
+        state.copy(
+            familiesTotal = lexicon.families.size,
+            familiesForWarning = lexicon.scoring.minDistinctFamiliesForHighRisk,
+            lexiconVersion = lexicon.version,
+        )
+
+    private fun elapsedMs() = clock() - sessionStartMs
 
     private companion object {
         const val TICK_MS = 1_000L

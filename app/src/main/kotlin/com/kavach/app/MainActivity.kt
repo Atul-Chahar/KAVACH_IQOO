@@ -25,9 +25,13 @@ import com.kavach.app.ui.ModelSetupScreen
 import com.kavach.app.ui.ReportScreen
 import com.kavach.app.ui.ShieldScreen
 import com.kavach.app.ui.ShieldViewModel
+import com.kavach.domain.Incident
 import com.kavach.domain.ModelState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /** Single activity, unidirectional data flow, one StateFlow (CLAUDE.md Stack). */
 class MainActivity : ComponentActivity() {
@@ -81,7 +85,13 @@ private fun KavachApp(viewModel: ShieldViewModel) {
     }
 
     report?.let { text ->
-        ReportRoute(text, onBack = { report = null })
+        ReportRoute(
+            viewModel = viewModel,
+            text = text,
+            incidents = state.incidents,
+            lexiconVersion = state.lexiconVersion,
+            onBack = { report = null },
+        )
         return
     }
 
@@ -95,6 +105,8 @@ private fun KavachApp(viewModel: ShieldViewModel) {
             viewModel.refreshModel()
             showModelSetup = true
         },
+        onToggleTranscript = viewModel::setShowTranscript,
+        modelInstalled = modelState is ModelState.Ready,
     )
 
     if (showFixtures) {
@@ -142,12 +154,19 @@ private fun ModelSetupRoute(
 
 @Composable
 private fun ReportRoute(
+    viewModel: ShieldViewModel,
     text: String,
+    incidents: List<Incident>,
+    lexiconVersion: String,
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
+    val dateFormat = remember { SimpleDateFormat("d MMM yyyy, HH:mm", Locale.getDefault()) }
     ReportScreen(
-        report = text,
+        incidents = incidents,
+        lexiconVersion = lexiconVersion,
+        nameFor = viewModel::tacticName,
+        formatDate = { dateFormat.format(Date(it)) },
         onShare = {
             // Office Kit file transfer picks this up from the share sheet.
             val share =
