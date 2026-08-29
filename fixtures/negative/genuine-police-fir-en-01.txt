@@ -1,0 +1,10 @@
+# expected: BELOW HIGH_RISK (<70) | a REAL police call about an FIR the victim filed
+# The hardest negative in the corpus: it says "Sub Inspector", "FIR" and
+# "police station" out loud. Authority alone must never be enough.
+CALLER: Good afternoon, this is Sub Inspector Kulkarni from the police station. You filed a complaint about a stolen phone last week.
+VICTIM: Yes, I did.
+CALLER: Your FIR has been registered and the handset has been traced. I need you to come and identify it when you are free.
+VICTIM: How do I know this is genuine?
+CALLER: Fair question. This call is recorded for quality. You can call us back on the station landline listed on your copy of the FIR, and your reference number for this call is 4471.
+VICTIM: Thank you, I will come tomorrow.
+CALLER: Take your time. Bring your ID, and you can discuss with your family before coming if you prefer. We never ask for money or an OTP on the phone.

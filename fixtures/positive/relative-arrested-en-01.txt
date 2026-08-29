@@ -1,0 +1,10 @@
+# expected: HIGH_RISK (>=70) | families: AUTHORITY_IMPERSONATION, URGENCY_AND_THREAT, ISOLATION_AND_SECRECY, REMOTE_ACCESS_AND_TRANSFER
+# ~70s spoken, English. The variant aimed at parents. Emotional pressure plus
+# secrecy plus money, and never a request for a credential.
+CALLER: Madam, I am Sub Inspector Verma. Your son has been detained in a narcotics case and an FIR has been registered.
+VICTIM: What? Is he alright?
+CALLER: He is here at the station. This is a non bailable matter and he will be arrested formally within two hours.
+VICTIM: Please, I want to speak to him.
+CALLER: Not yet. Do not tell anyone, especially not other family members, and do not disconnect this call.
+VICTIM: I understand.
+CALLER: To settle this quietly you can transfer to this account. Treat it as an advance payment against the bail, fully refundable.

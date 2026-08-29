@@ -1,0 +1,9 @@
+# expected: HIGH_RISK (>=70) | families: AUTHORITY_IMPERSONATION, REMOTE_ACCESS_AND_TRANSFER, CREDENTIAL_EXTRACTION
+# ~65s spoken, English. Fake customer-care refund. The tell is remote access.
+CALLER: Hello sir, I am calling from the bank fraud department about a failed transaction on your account.
+VICTIM: Yes, a payment did fail yesterday.
+CALLER: Exactly. I can process the refundable amount right now, but the reversal has to be done from your device.
+VICTIM: How?
+CALLER: Please install this app called AnyDesk, or Quick Support, and turn screen sharing on so I can guide you.
+VICTIM: It has opened.
+CALLER: Good. Now a message has arrived. Read me the code, tell me the OTP, and confirm your UPI PIN so the amount is credited.

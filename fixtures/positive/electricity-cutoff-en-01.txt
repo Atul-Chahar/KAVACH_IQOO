@@ -1,0 +1,10 @@
+# expected: HIGH_RISK (>=70) | families: URGENCY_AND_THREAT, REMOTE_ACCESS_AND_TRANSFER, CREDENTIAL_EXTRACTION
+# ~60s spoken, English. No authority claim at all — proves a warning does not
+# depend on someone saying "police".
+CALLER: This is regarding your electricity connection. Your last bill was not processed and this is your last warning before disconnection tonight.
+VICTIM: I paid that bill.
+CALLER: The system shows it pending, sir. Immediate action is required or legal action will be taken by the department.
+VICTIM: What should I do?
+CALLER: Install this app so our engineer can verify the meter reading remotely. Search for AnyDesk on the Play Store and turn screen sharing on.
+VICTIM: It is asking for a code.
+CALLER: Yes, read me the code. Tell me the OTP that has arrived, and confirm your UPI PIN to complete the reversal.
