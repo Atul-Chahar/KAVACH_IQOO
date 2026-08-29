@@ -3,6 +3,7 @@ package com.kavach.app
 import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -22,6 +23,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.kavach.app.setup.Capability
 import com.kavach.app.setup.Readiness
 import com.kavach.app.setup.Rung
 import com.kavach.app.ui.FixturePickerDialog
@@ -57,7 +59,8 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun KavachApp(viewModel: ShieldViewModel) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val app = LocalContext.current.applicationContext as KavachApplication
+    val context = LocalContext.current
+    val app = context.applicationContext as KavachApplication
 
     var showFixtures by remember { mutableStateOf(false) }
     var report by remember { mutableStateOf<String?>(null) }
@@ -65,6 +68,8 @@ private fun KavachApp(viewModel: ShieldViewModel) {
 
     val modelState by viewModel.modelState.collectAsStateWithLifecycle()
     var setupAcknowledged by rememberSaveable { mutableStateOf(false) }
+
+    val capabilities = rememberCapabilities(context)
 
     // Setup is shown until the device can actually do the thing the app claims,
     // or until the user says they have seen it. Never as a carousel, never twice.
@@ -107,23 +112,75 @@ private fun KavachApp(viewModel: ShieldViewModel) {
         return
     }
 
-    ShieldScreen(
-        state = state,
-        onStartLive = { permissionLauncher.launch(requiredPermissions()) },
-        onStartDemo = { showFixtures = true },
-        onStop = viewModel::stop,
-        onOpenReport = { report = viewModel.report() },
-        onOpenModelSetup = {
-            viewModel.refreshModel()
-            showModelSetup = true
-        },
-        onToggleTranscript = viewModel::setShowTranscript,
-        modelInstalled = modelState is ModelState.Ready,
+    ShieldRoute(
+        viewModel = viewModel,
+        capabilities = capabilities,
+        actions =
+            HomeActions(
+                startLive = { permissionLauncher.launch(requiredPermissions()) },
+                startDemo = { showFixtures = true },
+                openReport = { report = viewModel.report() },
+                openModelSetup = {
+                    viewModel.refreshModel()
+                    showModelSetup = true
+                },
+            ),
     )
 
     if (showFixtures) {
         FixtureRoute(viewModel) { showFixtures = false }
     }
+}
+
+/** The four things the home screen can navigate to, kept together so the route reads as one. */
+private data class HomeActions(
+    val startLive: () -> Unit,
+    val startDemo: () -> Unit,
+    val openReport: () -> Unit,
+    val openModelSetup: () -> Unit,
+)
+
+/** The home and in-session surfaces. Follows the Route-per-screen shape above. */
+@Composable
+private fun ShieldRoute(
+    viewModel: ShieldViewModel,
+    capabilities: List<Capability>,
+    actions: HomeActions,
+) {
+    val context = LocalContext.current
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val modelState by viewModel.modelState.collectAsStateWithLifecycle()
+    ShieldScreen(
+        state = state,
+        onStartLive = actions.startLive,
+        onStartDemo = actions.startDemo,
+        onStop = viewModel::stop,
+        onOpenReport = actions.openReport,
+        onOpenModelSetup = actions.openModelSetup,
+        onToggleTranscript = viewModel::setShowTranscript,
+        onDismissAlert = viewModel::dismissAlert,
+        onCall1930 = { dial1930(context) },
+        modelInstalled = modelState is ModelState.Ready,
+        capabilities = capabilities,
+        onFixCapability = { rungId -> grantById(context, rungId) },
+    )
+}
+
+/**
+ * The home screen's status strip, re-read on every resume and never cached.
+ *
+ * The whole point of the strip is that the user walks to Settings, grants
+ * something and comes back — one still showing the old answer would be worse
+ * than no strip at all.
+ */
+@Composable
+private fun rememberCapabilities(context: Context): List<Capability> {
+    var capabilities by remember { mutableStateOf(emptyList<Capability>()) }
+    LifecycleResumeEffect(Unit) {
+        capabilities = Readiness.capabilities(context)
+        onPauseOrDispose { }
+    }
+    return capabilities
 }
 
 /** DemoMode's fixture chooser. Replays a scripted transcript through the live pipeline. */
@@ -260,6 +317,26 @@ private fun grant(
             context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         }
     }
+}
+
+/**
+ * ACTION_DIAL, never ACTION_CALL: the number is pre-filled and the user presses
+ * the green button themselves (CLAUDE.md hard rule 5).
+ */
+private fun dial1930(context: Context) {
+    runCatching {
+        context.startActivity(
+            Intent(Intent.ACTION_DIAL, Uri.parse("tel:1930")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+    }
+}
+
+/** Opens the one Settings page that grants the capability the user tapped. */
+private fun grantById(
+    context: Context,
+    rungId: String,
+) {
+    Readiness.rungs(context).firstOrNull { it.id == rungId }?.let { grant(context, it) }
 }
 
 /** `.litertlm` has no registered MIME type, so accept anything and verify by size. */

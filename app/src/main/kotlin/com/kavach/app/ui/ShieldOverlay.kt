@@ -390,13 +390,37 @@ private fun AlertCard(
             }
         }
 
-        Row(
-            Modifier.fillMaxWidth().padding(top = 22.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            OverlayButton("Call 1930", palette.accent, palette.onAccent, Modifier.weight(1f), onCall1930)
-            OverlayButton("I'm fine", Color.Transparent, palette.ink, Modifier.weight(1f), onDismiss, palette.rule)
-        }
+        // Both actions are dragged, not tapped. The person reading this card is
+        // the worst candidate for a tap target: frightened, being talked at, and
+        // often holding the phone against their face — and a stray touch on
+        // "I'm fine" silences the only warning they get. Dragging costs a
+        // deliberate half-second and cannot happen by accident.
+        //
+        // Monochrome on the red, because the design system spends colour once:
+        // the full-bleed press-red *is* the signal, and a green affordance laid
+        // on it would be a second, competing one.
+        Gap(22.dp)
+        SlideToConfirm(
+            label = "Slide to call 1930",
+            icon = Ph.phoneCall,
+            track = palette.ink.copy(alpha = 0.16f),
+            thumb = palette.accent,
+            onThumb = palette.onAccent,
+            ink = palette.ink,
+            onConfirm = onCall1930,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Gap(10.dp)
+        SlideToConfirm(
+            label = "Slide if you're fine",
+            icon = Ph.handPalm,
+            track = palette.ink.copy(alpha = 0.09f),
+            thumb = palette.ink.copy(alpha = 0.22f),
+            onThumb = palette.ink,
+            ink = palette.inkSoft,
+            onConfirm = onDismiss,
+            modifier = Modifier.fillMaxWidth(),
+        )
 
         Text(
             "Kavach can be wrong. It never blocks or ends a call for you.",
@@ -405,33 +429,6 @@ private fun AlertCard(
             textAlign = TextAlign.Start,
             modifier = Modifier.padding(top = 16.dp),
         )
-    }
-}
-
-@Composable
-private fun OverlayButton(
-    label: String,
-    background: Color,
-    content: Color,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-    border: Color? = null,
-) {
-    Box(
-        modifier
-            .clip(RoundedCornerShape(KavachTokens.RadiusCard))
-            .background(background)
-            .then(
-                if (border != null) {
-                    Modifier.border(1.dp, border, RoundedCornerShape(KavachTokens.RadiusCard))
-                } else {
-                    Modifier
-                },
-            ).clickable(onClick = onClick)
-            .padding(vertical = 16.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(label, color = content, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 

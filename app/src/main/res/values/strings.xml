@@ -136,4 +136,8 @@
     <string name="raise_blocked_title">Kavach could not watch that call</string>
     <string name="raise_blocked_body">Display-over-apps permission is off, so the shield could not appear for the incoming call. Tap to allow it, and the next call is watched automatically.</string>
     <string name="notification_subtext">KAVACH LIVE</string>
+    <string name="action_slide_to_dial_1930">Slide to call 1930</string>
+    <string name="demo_simulation_note">This is a replayed example. Nothing was really detected, and no one has been alerted.</string>
+    <string name="home_status_ready">Fully armed</string>
+    <string name="home_status_partial">Partly armed — tap to fix</string>
 </resources>

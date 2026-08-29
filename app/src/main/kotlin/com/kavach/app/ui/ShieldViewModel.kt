@@ -82,6 +82,18 @@ class ShieldViewModel(
     /** Reveals the matched words in-place. Nothing is written anywhere. */
     fun setShowTranscript(show: Boolean) = app.controller.setShowTranscript(show)
 
+    /**
+     * "I'm fine." Silences the warning for the rest of this call and nothing
+     * more: capture continues, the score keeps moving, the report still records
+     * what was heard.
+     *
+     * The home screen's "Not a scam" button was wired to [stop], so telling
+     * Kavach it had misread the call switched the whole thing off — the exact
+     * conflation [com.kavach.app.monitor.ShieldController.dismissAlert] was
+     * written to end. That fix reached the overlay and never reached here.
+     */
+    fun dismissAlert() = app.controller.dismissAlert()
+
     /** Live monitoring runs in the foreground service, so it survives the screen going off. */
     fun startLive() = KavachService.start(getApplication())
 

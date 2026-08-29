@@ -52,6 +52,7 @@ import com.kavach.app.R
 import com.kavach.app.monitor.MonitorMode
 import com.kavach.app.monitor.ShieldUiState
 import com.kavach.app.monitor.TacticEvidence
+import com.kavach.app.setup.Capability
 import com.kavach.domain.RiskBand
 import java.util.Locale
 
@@ -80,12 +81,26 @@ fun ShieldScreen(
     onOpenModelSetup: () -> Unit,
     modifier: Modifier = Modifier,
     onToggleTranscript: (Boolean) -> Unit = {},
+    onDismissAlert: () -> Unit = {},
+    onCall1930: () -> Unit = {},
     modelInstalled: Boolean = false,
+    capabilities: List<Capability> = emptyList(),
+    onFixCapability: (String) -> Unit = {},
 ) {
     if (state.monitoring) {
-        MonitorSurface(state, onStop, onToggleTranscript, modifier)
+        MonitorSurface(state, onStop, onToggleTranscript, onDismissAlert, onCall1930, modifier)
     } else {
-        HomeSurface(state, onStartLive, onStartDemo, onOpenReport, onOpenModelSetup, modelInstalled, modifier)
+        HomeSurface(
+            state,
+            onStartLive,
+            onStartDemo,
+            onOpenReport,
+            onOpenModelSetup,
+            modelInstalled,
+            capabilities,
+            onFixCapability,
+            modifier,
+        )
     }
 }
 
@@ -101,6 +116,8 @@ private fun HomeSurface(
     onOpenReport: () -> Unit,
     onOpenModelSetup: () -> Unit,
     modelInstalled: Boolean,
+    capabilities: List<Capability>,
+    onFixCapability: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -150,7 +167,10 @@ private fun HomeSurface(
             Gap(30.dp)
             HeroAction(onStartLive)
 
-            Gap(26.dp)
+            Gap(24.dp)
+            CapabilityStrip(capabilities, onFixCapability)
+
+            Gap(14.dp)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 PaperTile(
                     icon = Ph.playCircle,
@@ -225,6 +245,95 @@ private fun HomeSurface(
             icons = listOf(Ph.house, Ph.fileText, Ph.gearSix),
             modifier = Modifier.padding(horizontal = KavachTokens.Gutter, vertical = 10.dp),
         )
+    }
+}
+
+/**
+ * What this install can actually do, one line per capability.
+ *
+ * Modelled on the Google Personal Safety app's feature list, where every
+ * feature carries its own status rather than the app carrying one overall
+ * verdict. The difference matters here: Kavach's permission chain has four
+ * independent links and failing any one of them removes a *different*
+ * capability, so a single "Manual sessions only" tells the user they are
+ * degraded without telling them what stopped working.
+ *
+ * Colour follows the tokens' existing meanings rather than a traffic light —
+ * cyan is already "Kavach is working" and amber is already "something has come
+ * up", so no new signal is invented and green never appears, because green
+ * anywhere in this app would read as "you are safe".
+ */
+@Composable
+private fun CapabilityStrip(
+    capabilities: List<Capability>,
+    onFix: (String) -> Unit,
+) {
+    if (capabilities.isEmpty()) return
+    val allReady = capabilities.all { it.ready }
+
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(KavachTokens.RadiusCard))
+            .background(KavachTokens.Card)
+            .border(1.dp, KavachTokens.Ink.copy(alpha = 0.10f), RoundedCornerShape(KavachTokens.RadiusCard))
+            .padding(horizontal = 18.dp, vertical = 16.dp),
+    ) {
+        SmallCaps(
+            stringResource(if (allReady) R.string.home_status_ready else R.string.home_status_partial),
+            if (allReady) KavachTokens.Cyan else KavachTokens.Amber,
+        )
+        Gap(12.dp)
+        capabilities.forEachIndexed { index, capability ->
+            if (index > 0) {
+                Gap(10.dp)
+                Rule(KavachTokens.Ink.copy(alpha = 0.08f))
+                Gap(10.dp)
+            }
+            CapabilityRow(capability, onFix)
+        }
+    }
+}
+
+@Composable
+private fun CapabilityRow(
+    capability: Capability,
+    onFix: (String) -> Unit,
+) {
+    val tint = if (capability.ready) KavachTokens.Cyan else KavachTokens.Amber
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .then(
+                capability.fix?.let { fix ->
+                    Modifier.clickable(role = Role.Button) { onFix(fix) }
+                } ?: Modifier,
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        PhosphorGlyph(
+            if (capability.ready) Ph.shieldCheck else Ph.warning,
+            18.dp,
+            tint,
+        )
+        GapW(11.dp)
+        Column(Modifier.weight(1f)) {
+            Text(
+                capability.name,
+                style = MaterialTheme.typography.bodyMedium,
+                color = KavachTokens.Ink,
+            )
+            capability.missing?.let {
+                Text(
+                    it,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = KavachTokens.Amber,
+                )
+            }
+        }
+        if (!capability.ready) {
+            PhosphorGlyph(Ph.arrowRight, 16.dp, KavachTokens.InkMuted)
+        }
     }
 }
 
@@ -311,6 +420,8 @@ private fun MonitorSurface(
     state: ShieldUiState,
     onStop: () -> Unit,
     onToggleTranscript: (Boolean) -> Unit,
+    onDismissAlert: () -> Unit,
+    onCall1930: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val palette = RiskColors.paletteFor(state.band)
@@ -331,6 +442,11 @@ private fun MonitorSurface(
             Gap(if (highRisk) 14.dp else 22.dp)
             Announcement(state, palette)
 
+            if (state.mode == MonitorMode.DEMO && state.band != RiskBand.WATCHING) {
+                Gap(12.dp)
+                SimulationNote(palette)
+            }
+
             when (state.band) {
                 RiskBand.WATCHING -> WatchingBody(state, palette, onToggleTranscript)
                 RiskBand.CAUTION -> CautionBody(state, palette, onToggleTranscript)
@@ -339,7 +455,7 @@ private fun MonitorSurface(
         }
 
         Gap(12.dp)
-        SessionFooter(state, palette, highRisk, onStop)
+        SessionFooter(state, palette, highRisk, onStop, onDismissAlert, onCall1930)
     }
 }
 
@@ -641,6 +757,40 @@ private fun ColumnScope.HighRiskBody(
     }
 }
 
+/**
+ * The simulation notice, borrowed from the Google Personal Safety app's demo
+ * flow, which says plainly: "Keep in mind, this is a simulation. No emergency
+ * actions will be started."
+ *
+ * A badge in the header is not enough on the HIGH_RISK surface. That screen is
+ * full-bleed press-red, reads LIKELY SCAM at 40sp and offers the cybercrime
+ * helpline; a small chip is not what a person takes away from it. Anyone shown
+ * a replay — a relative, a judge, someone who picked up the phone mid-demo —
+ * has to be able to tell in one glance that nothing was really detected.
+ *
+ * Drawn as a hairline box with no fill, so it reads as a printed marginal note
+ * rather than another alert competing with the one above it.
+ */
+@Composable
+private fun SimulationNote(palette: BandPalette) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .border(1.dp, palette.ink.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        PhosphorGlyph(Ph.playCircle, 20.dp, palette.ink)
+        Text(
+            stringResource(R.string.demo_simulation_note),
+            style = MaterialTheme.typography.bodySmall,
+            color = palette.ink,
+        )
+    }
+}
+
 @Composable
 private fun ActionRow(
     icon: PhosphorIcon,
@@ -743,6 +893,8 @@ private fun SessionFooter(
     palette: BandPalette,
     highRisk: Boolean,
     onStop: () -> Unit,
+    onDismissAlert: () -> Unit,
+    onCall1930: () -> Unit,
 ) {
     state.failureReason?.let {
         FailureNote(it)
@@ -750,10 +902,26 @@ private fun SessionFooter(
     }
 
     if (highRisk) {
+        // The screen already tells the user to report the call on 1930, and
+        // until now offered no way to do it — the helpline was a sentence, not
+        // an action. It is the first control here because it is the only one
+        // that helps, and it is dragged rather than tapped for the same reason
+        // the overlay's is.
+        SlideToConfirm(
+            label = stringResource(R.string.action_slide_to_dial_1930),
+            icon = Ph.phoneCall,
+            track = palette.ink.copy(alpha = 0.14f),
+            thumb = palette.accent,
+            onThumb = palette.onAccent,
+            ink = palette.ink,
+            onConfirm = onCall1930,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Gap(10.dp)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             PillButton(
                 label = stringResource(R.string.action_not_a_scam),
-                onClick = onStop,
+                onClick = onDismissAlert,
                 filled = false,
                 content = palette.ink,
                 height = 50.dp,
@@ -763,10 +931,10 @@ private fun SessionFooter(
                 label = stringResource(R.string.action_stop_listening),
                 onClick = onStop,
                 icon = Ph.stopCircle,
-                container = palette.accent,
-                content = palette.onAccent,
+                filled = false,
+                content = palette.ink,
                 height = 50.dp,
-                modifier = Modifier.weight(1.4f),
+                modifier = Modifier.weight(1f),
             )
         }
     } else {
