@@ -1,6 +1,7 @@
 package com.kavach.app
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -16,12 +17,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.kavach.app.setup.Readiness
+import com.kavach.app.setup.Rung
 import com.kavach.app.ui.FixturePickerDialog
 import com.kavach.app.ui.KavachTheme
 import com.kavach.app.ui.ModelSetupScreen
+import com.kavach.app.ui.ReadinessScreen
 import com.kavach.app.ui.ReportScreen
 import com.kavach.app.ui.ShieldScreen
 import com.kavach.app.ui.ShieldViewModel
@@ -51,12 +57,18 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun KavachApp(viewModel: ShieldViewModel) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val app = LocalContext.current.applicationContext as KavachApplication
 
     var showFixtures by remember { mutableStateOf(false) }
     var report by remember { mutableStateOf<String?>(null) }
     var showModelSetup by remember { mutableStateOf(false) }
 
     val modelState by viewModel.modelState.collectAsStateWithLifecycle()
+    var setupAcknowledged by rememberSaveable { mutableStateOf(false) }
+
+    // Setup is shown until the device can actually do the thing the app claims,
+    // or until the user says they have seen it. Never as a carousel, never twice.
+    if (!setupAcknowledged && SetupGate(app) { setupAcknowledged = true }) return
 
     // The system file picker: the user grants access to exactly one file, so no
     // storage permission is needed and Kavach can read nothing else.
@@ -110,15 +122,24 @@ private fun KavachApp(viewModel: ShieldViewModel) {
     )
 
     if (showFixtures) {
-        FixturePickerDialog(
-            fixtures = viewModel.fixtures,
-            onPick = {
-                showFixtures = false
-                viewModel.startDemo(it)
-            },
-            onDismiss = { showFixtures = false },
-        )
+        FixtureRoute(viewModel) { showFixtures = false }
     }
+}
+
+/** DemoMode's fixture chooser. Replays a scripted transcript through the live pipeline. */
+@Composable
+private fun FixtureRoute(
+    viewModel: ShieldViewModel,
+    onClose: () -> Unit,
+) {
+    FixturePickerDialog(
+        fixtures = viewModel.fixtures,
+        onPick = {
+            onClose()
+            viewModel.startDemo(it)
+        },
+        onDismiss = onClose,
+    )
 }
 
 @Composable
@@ -179,6 +200,62 @@ private fun ReportRoute(
         },
         onBack = onBack,
     )
+}
+
+/**
+ * The permission ladder, shown until this device can do what the app claims.
+ *
+ * Returns true when it took the screen, so the caller can stop composing the
+ * rest. Readiness is re-read on every resume rather than cached: the user walks
+ * to Settings and back, and a checklist showing the old answer is worse than none.
+ */
+@Composable
+private fun SetupGate(
+    app: KavachApplication,
+    onContinue: () -> Unit,
+): Boolean {
+    val context = LocalContext.current
+    val capture by app.diagnostics.state.collectAsStateWithLifecycle()
+
+    var rungs by remember { mutableStateOf(Readiness.rungs(context)) }
+    var tier by remember { mutableStateOf(Readiness.tier(context)) }
+    var restrictedHint by remember { mutableStateOf(Readiness.needsRestrictedSettingsHint(context)) }
+
+    LifecycleResumeEffect(Unit) {
+        rungs = Readiness.rungs(context)
+        tier = Readiness.tier(context)
+        restrictedHint = Readiness.needsRestrictedSettingsHint(context)
+        onPauseOrDispose { }
+    }
+
+    if (tier == Readiness.TIER_IN_CALL) return false
+
+    ReadinessScreen(
+        rungs = rungs,
+        tier = tier,
+        capture = capture,
+        showRestrictedHint = restrictedHint,
+        onGrant = { rung -> grant(context, rung) },
+        onContinue = onContinue,
+    )
+    return true
+}
+
+/**
+ * Sends the user to the one place this rung can be granted.
+ *
+ * Accessibility and overlay access cannot be granted from inside an app by
+ * design, so this opens Settings rather than pretending a dialog exists.
+ */
+private fun grant(
+    context: Context,
+    rung: Rung,
+) {
+    rung.settingsIntent?.let { intent ->
+        runCatching {
+            context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        }
+    }
 }
 
 /** `.litertlm` has no registered MIME type, so accept anything and verify by size. */
