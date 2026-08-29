@@ -1,0 +1,9 @@
+# expected: WATCHING (<40) | family discussing a genuine transfer - mentions money, accounts, urgency
+SON: Papa, maine aapke account mein paise transfer kar diye hain, pachas hazar.
+FATHER: Kab kiye?
+SON: Abhi thodi der pehle. NEFT kar diya hai, kal tak aa jayenge.
+FATHER: Theek hai. Mujhe hospital ka payment karna hai parso tak, urgent hai.
+SON: Ho jayega. Aur papa, agar koi call aaye bank se bolke aur OTP maange to mat batana, aaj kal bahut scam ho rahe hain.
+FATHER: Haan mujhe pata hai, news mein dekha tha. Digital arrest wala.
+SON: Bilkul. Koi bhi asli bank kabhi OTP nahi maangta.
+FATHER: Theek hai beta.

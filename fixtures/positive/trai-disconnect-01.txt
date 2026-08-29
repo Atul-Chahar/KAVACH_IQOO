@@ -1,0 +1,11 @@
+# expected: HIGH_RISK (>=70) | families: AUTHORITY_IMPERSONATION, URGENCY_AND_THREAT, ISOLATION_AND_SECRECY, REMOTE_ACCESS_AND_TRANSFER
+# ~75s spoken, TRAI/number-misuse variant, English-heavy
+
+CALLER: This call is from TRAI. Your mobile number will be disconnected within two hours due to illegal activity registered against it.
+VICTIM: What activity?
+CALLER: Your Aadhaar is linked to a second SIM which has been used for harassment complaints. There is an FIR. I am transferring you to the cyber crime branch.
+CALLER2: Sub Inspector speaking. Sir, this is a non bailable matter. An arrest warrant may be issued today.
+VICTIM: I have not done anything.
+CALLER2: We understand. But the case is confidential, please do not tell anyone, and do not disconnect the call. Keep your camera on. You are under surveillance until verification is complete.
+VICTIM: Okay.
+CALLER2: For clearance you will need to transfer to this account for verification. It is a refundable amount held in a safe custody account. Also install this app, AnyDesk, and turn screen sharing on so our officer can verify your bank records.

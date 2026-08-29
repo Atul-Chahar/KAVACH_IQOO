@@ -1,0 +1,12 @@
+# Reproducible toolchain for Kavach. `mise install` then `mise x -- ./gradlew ...`,
+# or `eval "$(mise activate bash)"` to get java/gradle on PATH automatically.
+#
+# The Android SDK itself is NOT managed here — install it via Android Studio or
+# cmdline-tools and point ANDROID_HOME at it (see below and local.properties).
+
+[tools]
+java = "temurin-21"
+
+[env]
+ANDROID_HOME = "{{env.HOME}}/Android/Sdk"
+ANDROID_SDK_ROOT = "{{env.HOME}}/Android/Sdk"

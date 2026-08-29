@@ -1,0 +1,43 @@
+# Kavach detekt overrides. Layered on top of detekt's default config
+# (buildUponDefaultConfig = true). Kept deliberately small: lint should
+# catch real problems at 3am, not argue about style.
+
+build:
+  maxIssues: 0
+
+complexity:
+  LongMethod:
+    # Compose composables are legitimately long.
+    excludes: ['**/ui/**']
+  LongParameterList:
+    excludes: ['**/ui/**']
+  TooManyFunctions:
+    thresholdInFiles: 20
+    thresholdInClasses: 20
+    excludes: ['**/test/**', '**/ui/**']
+
+style:
+  MagicNumber:
+    excludes: ['**/test/**', '**/ui/**']
+  MaxLineLength:
+    maxLineLength: 120
+    excludes: ['**/test/**']
+  ReturnCount:
+    max: 4
+  UnusedPrivateMember:
+    active: true
+    # @Preview composables are tooling entry points, not dead code.
+    ignoreAnnotated: ['Preview']
+
+exceptions:
+  TooGenericExceptionCaught:
+    # ARCHITECTURE.md §8 requires broad catches around model/NPU/mic init:
+    # a degraded app beats a crashed one.
+    excludes: ['**/inference/**', '**/capture/**']
+  SwallowedException:
+    excludes: ['**/inference/**', '**/capture/**']
+
+naming:
+  FunctionNaming:
+    # @Composable functions are PascalCase by convention.
+    ignoreAnnotated: ['Composable']

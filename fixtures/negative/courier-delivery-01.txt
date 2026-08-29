@@ -1,0 +1,9 @@
+# expected: WATCHING (<40) | legitimate courier call
+CALLER: Hello sir, main Delhivery se bol raha hoon. Aapka parcel delivery ke liye aaya hai, main aapke building ke neeche hoon.
+VICTIM: Haan, third floor pe aa jaiye.
+CALLER: Sir lift kaam kar rahi hai?
+VICTIM: Haan haan.
+CALLER: Theek hai. Delivery ke time ek OTP aayega aapke phone par, wo mujhe dikha dijiyega ya bata dijiyega, tabhi delivery complete hogi.
+VICTIM: Theek hai, aa jao.
+CALLER: Aur sir agar aap ghar par nahi hote to security ke paas chhod doon?
+VICTIM: Nahi main ghar par hi hoon.

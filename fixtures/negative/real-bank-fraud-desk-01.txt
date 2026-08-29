@@ -1,0 +1,13 @@
+# expected: BELOW HIGH_RISK (<70), CAUTION acceptable | this is a LEGITIMATE bank call
+# The hardest negative: a real fraud desk genuinely triggers AUTHORITY + URGENCY.
+# Family-diversity rule and negativeGuards must keep this under 70.
+
+CALLER: Good afternoon, I am calling from your bank's fraud monitoring team regarding a transaction on your card ending 4471.
+VICTIM: Okay, go ahead.
+CALLER: We flagged a transaction of eighteen thousand rupees at an online merchant this morning. Can you confirm whether this was you?
+VICTIM: No, that wasn't me.
+CALLER: Thank you. I have blocked the card as a precaution. You will not be liable for that transaction.
+VICTIM: How do I know this call is genuine?
+CALLER: That is a very fair question. We will never ask for your OTP, PIN or password, and I will not ask you for any code. If you prefer, please hang up and call us back on the number on your card. You can also visit your nearest branch. Your reference number for this call is 8829104.
+VICTIM: Alright, that's reassuring.
+CALLER: Take your time, and you can discuss with your family before doing anything. A replacement card will reach you in five working days.

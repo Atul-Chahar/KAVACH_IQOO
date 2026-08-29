@@ -1,0 +1,16 @@
+# expected: HIGH_RISK (>=70) | families: AUTHORITY_IMPERSONATION, ISOLATION_AND_SECRECY, URGENCY_AND_THREAT, REMOTE_ACCESS_AND_TRANSFER
+# ~90s spoken, two speakers, Hinglish code-switched
+
+CALLER: Good morning. Main Sub Inspector Rajesh Kumar bol raha hoon, cyber crime branch Mumbai se.
+VICTIM: Ji? Kaun?
+CALLER: Aapke naam par ek parcel Mumbai airport par pakda gaya hai. Us parcel mein drugs mile hain. Aapka Aadhaar card is parcel se linked hai.
+VICTIM: Nahi nahi, maine koi parcel nahi bheja.
+CALLER: Sir, aapke khilaf money laundering ka case ban chuka hai. FIR darj ho gayi hai. Yeh gair zamanti offence hai.
+VICTIM: Main kya karoon?
+CALLER: Aap ghabraiye mat. Lekin ek baat dhyan se suniye. Yeh mamla gopniya hai. Case is confidential. Aap kisi ko mat bataiye, ghar walon ko mat batao.
+VICTIM: Theek hai.
+CALLER: Aur video call mat katna. Aap digital arrest par hain. Camera on rakhiye, hum aapko surveillance mein rakh rahe hain. Call disconnect mat kijiye warna aap giraftar ho jayenge.
+VICTIM: Ji, main samajh gaya.
+CALLER: Ab verification ke liye aapko apna paisa ek government verified account mein transfer karna hoga. Yeh safe custody account hai. Do ghante ke andar. Refundable amount hai, verification ke baad wapas mil jayega.
+VICTIM: Kitna?
+CALLER: Aap apna balance bataiye. Aur ek app download kijiye, AnyDesk. Play store se download karke mujhe screen share kijiye taaki main verify kar sakoon.

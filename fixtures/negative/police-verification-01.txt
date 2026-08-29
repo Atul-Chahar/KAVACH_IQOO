@@ -1,0 +1,8 @@
+# expected: BELOW HIGH_RISK (<70) | genuine police verification for passport - real authority, no scam tactics
+CALLER: Namaste, main local police station se bol raha hoon, passport verification ke liye.
+VICTIM: Ji boliye.
+CALLER: Aap ghar par kab milenge? Constable aayega document verification ke liye, aapka Aadhaar card aur rent agreement chahiye hoga.
+VICTIM: Kal subah theek rahega.
+CALLER: Theek hai, kal gyarah baje aa jayenge. Aap ghar walon ko bata dijiyega. Agar koi confusion ho to aap station aa kar mil sakte hain, ya thane ke landline par call kar sakte hain.
+VICTIM: Ji theek hai, dhanyavaad.
+CALLER: Aur sir, hum kabhi phone par paise ya OTP nahi maangte. Agar koi aisa kare to turant complaint kijiye.

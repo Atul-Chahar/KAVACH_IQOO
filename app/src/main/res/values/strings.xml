@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">Kavach</string>
+    <string name="skeleton_status">Skeleton build. Nothing is being recorded.</string>
+
+    <!--
+      docs/SAFETY.md §2 requires this exact sentiment in onboarding, in the
+      foreground notification, and out loud in the pitch. Do not delete it.
+    -->
+    <string name="safety_no_guarantee">No alert is not a guarantee of safety.</string>
+</resources>

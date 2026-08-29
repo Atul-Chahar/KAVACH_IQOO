@@ -1,0 +1,12 @@
+# expected: HIGH_RISK (>=70) | families: AUTHORITY_IMPERSONATION, CREDENTIAL_EXTRACTION, URGENCY_AND_THREAT
+# ~60s spoken, fake bank fraud desk
+
+CALLER: Hello, main HDFC bank ke fraud department se bol raha hoon. Aapke account se ek suspicious transaction detect hui hai, twenty four thousand rupees.
+VICTIM: Maine to koi transaction nahi ki.
+CALLER: Exactly sir, isiliye call kiya. Agar humne ise abhi block nahi kiya to aapka account block ho jayega aur khaata freeze kar diya jayega.
+VICTIM: To kya karna hoga?
+CALLER: Main abhi transaction reverse karta hoon. Aapke registered mobile par ek code aayega. Turant bataiye, warna reversal window band ho jayegi.
+VICTIM: Ruko, message aa raha hai.
+CALLER: Haan, message me jo aaya code hai, wo OTP bataiye. Jaldi kijiye, do minute ka time hai.
+VICTIM: Yeh to likha hai kisi ko mat batana.
+CALLER: Sir wo general warning hoti hai. Main bank se hi bol raha hoon. Aap OTP batao, aur apna UPI PIN bhi confirm kar dijiye taaki main verify kar sakoon.

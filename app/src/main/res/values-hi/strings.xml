@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="skeleton_status">प्रारंभिक बिल्ड। कुछ भी रिकॉर्ड नहीं हो रहा है।</string>
+    <string name="safety_no_guarantee">चेतावनी न आना सुरक्षा की गारंटी नहीं है।</string>
+</resources>

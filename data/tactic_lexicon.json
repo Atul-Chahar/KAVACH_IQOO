@@ -1,0 +1,176 @@
+{
+  "$schema": "kavach.tactic-lexicon.v1",
+  "version": "1.0.0",
+  "updated": "2026-08-27",
+  "provenance": "Markers compiled from publicly published advisories: I4C citizen advisory on digital arrest, PhonePe Trust & Safety, Seqrite threat research, RBI advisories on remote-access-app fraud, and mainstream red-flag explainers. No private or field data.",
+  "notes": "Romanised (Hinglish) spellings are included deliberately so keyword matching survives imperfect ASR on code-switched speech. Match case-insensitively on a normalised transcript.",
+
+  "scoring": {
+    "highRiskThreshold": 70,
+    "cautionThreshold": 40,
+    "decayHalfLifeSeconds": 120,
+    "minDistinctFamiliesForHighRisk": 3,
+    "familyDiversityBonus": 12,
+    "maxScorePerFamily": 30
+  },
+
+  "families": [
+    {
+      "id": "AUTHORITY_IMPERSONATION",
+      "displayEn": "Caller claims to be law enforcement or a bank",
+      "displayHi": "कॉल करने वाला खुद को पुलिस या बैंक अधिकारी बता रहा है",
+      "baseWeight": 18,
+      "markers": [
+        { "t": "cbi",                         "w": 20 },
+        { "t": "central bureau of investigation", "w": 20 },
+        { "t": "enforcement directorate",      "w": 20 },
+        { "t": "narcotics",                    "w": 18 },
+        { "t": "customs department",           "w": 18 },
+        { "t": "cyber crime branch",           "w": 18 },
+        { "t": "trai",                         "w": 15 },
+        { "t": "arrest warrant",               "w": 25 },
+        { "t": "गिरफ्तारी वारंट",                "w": 25 },
+        { "t": "giraftari warrant",            "w": 25 },
+        { "t": "fir",                          "w": 15 },
+        { "t": "एफआईआर दर्ज",                   "w": 18 },
+        { "t": "fir darj",                     "w": 18 },
+        { "t": "your aadhaar is linked",       "w": 22 },
+        { "t": "aadhaar card linked",          "w": 20 },
+        { "t": "आधार कार्ड से जुड़ा",             "w": 20 },
+        { "t": "money laundering",             "w": 20 },
+        { "t": "illegal parcel",               "w": 20 },
+        { "t": "parcel mein drugs",            "w": 22 },
+        { "t": "sub inspector",                "w": 15 },
+        { "t": "police station se bol raha",   "w": 20 },
+        { "t": "मैं पुलिस से बोल रहा हूं",         "w": 20 }
+      ]
+    },
+
+    {
+      "id": "ISOLATION_AND_SECRECY",
+      "displayEn": "You are being told to stay on the call and keep it secret",
+      "displayHi": "आपको कॉल पर बने रहने और यह बात छिपाने को कहा जा रहा है",
+      "baseWeight": 22,
+      "markers": [
+        { "t": "don't tell anyone",            "w": 25 },
+        { "t": "do not tell anyone",           "w": 25 },
+        { "t": "किसी को मत बताना",               "w": 25 },
+        { "t": "kisi ko mat batana",           "w": 25 },
+        { "t": "kisi ko mat bataiye",          "w": 25 },
+        { "t": "stay on the video call",       "w": 28 },
+        { "t": "video call mat katna",         "w": 28 },
+        { "t": "कॉल मत काटिए",                  "w": 26 },
+        { "t": "call disconnect mat",          "w": 26 },
+        { "t": "do not disconnect",            "w": 24 },
+        { "t": "case is confidential",         "w": 24 },
+        { "t": "यह मामला गोपनीय है",             "w": 24 },
+        { "t": "under surveillance",           "w": 22 },
+        { "t": "digital arrest",               "w": 30 },
+        { "t": "डिजिटल अरेस्ट",                  "w": 30 },
+        { "t": "camera on rakhiye",            "w": 26 },
+        { "t": "keep your camera on",          "w": 26 },
+        { "t": "don't talk to your family",    "w": 26 },
+        { "t": "ghar walon ko mat batao",      "w": 26 }
+      ]
+    },
+
+    {
+      "id": "URGENCY_AND_THREAT",
+      "displayEn": "You are being pressured with threats and deadlines",
+      "displayHi": "आप पर धमकी और समय-सीमा का दबाव डाला जा रहा है",
+      "baseWeight": 15,
+      "markers": [
+        { "t": "within two hours",             "w": 18 },
+        { "t": "do ghante ke andar",           "w": 18 },
+        { "t": "account will be frozen",       "w": 22 },
+        { "t": "खाता फ्रीज",                    "w": 22 },
+        { "t": "account block ho jayega",      "w": 20 },
+        { "t": "you will be arrested",         "w": 25 },
+        { "t": "आप गिरफ्तार हो जाएंगे",           "w": 25 },
+        { "t": "aap giraftar ho jayenge",      "w": 25 },
+        { "t": "non bailable",                 "w": 22 },
+        { "t": "gair zamanti",                 "w": 22 },
+        { "t": "immediate action",             "w": 12 },
+        { "t": "turant",                       "w": 10 },
+        { "t": "last warning",                 "w": 18 },
+        { "t": "aakhri chetavni",              "w": 18 },
+        { "t": "legal action will be taken",   "w": 16 },
+        { "t": "court summon",                 "w": 18 }
+      ]
+    },
+
+    {
+      "id": "CREDENTIAL_EXTRACTION",
+      "displayEn": "You are being asked for an OTP, PIN or password",
+      "displayHi": "आपसे ओटीपी, पिन या पासवर्ड मांगा जा रहा है",
+      "baseWeight": 30,
+      "markers": [
+        { "t": "otp",                          "w": 28 },
+        { "t": "ओटीपी",                         "w": 28 },
+        { "t": "one time password",            "w": 28 },
+        { "t": "otp bataiye",                  "w": 32 },
+        { "t": "otp batao",                    "w": 32 },
+        { "t": "ओटीपी बताइए",                   "w": 32 },
+        { "t": "read me the code",             "w": 30 },
+        { "t": "code padhiye",                 "w": 30 },
+        { "t": "cvv",                          "w": 30 },
+        { "t": "card ka pin",                  "w": 30 },
+        { "t": "upi pin",                      "w": 30 },
+        { "t": "यूपीआई पिन",                    "w": 30 },
+        { "t": "atm pin",                      "w": 30 },
+        { "t": "net banking password",         "w": 30 },
+        { "t": "share your password",          "w": 30 },
+        { "t": "message me aaya code",         "w": 28 },
+        { "t": "sms me jo number aaya",        "w": 28 }
+      ]
+    },
+
+    {
+      "id": "REMOTE_ACCESS_AND_TRANSFER",
+      "displayEn": "You are being asked to share your screen or transfer money",
+      "displayHi": "आपसे स्क्रीन साझा करने या पैसे भेजने को कहा जा रहा है",
+      "baseWeight": 28,
+      "markers": [
+        { "t": "anydesk",                      "w": 32 },
+        { "t": "teamviewer",                   "w": 32 },
+        { "t": "quick support",                "w": 26 },
+        { "t": "rustdesk",                     "w": 30 },
+        { "t": "screen share",                 "w": 28 },
+        { "t": "screen sharing on",            "w": 30 },
+        { "t": "स्क्रीन शेयर",                   "w": 28 },
+        { "t": "install this app",             "w": 22 },
+        { "t": "app download kijiye",          "w": 22 },
+        { "t": "play store se download",       "w": 20 },
+        { "t": "verification deposit",         "w": 30 },
+        { "t": "verification ke liye paise",   "w": 32 },
+        { "t": "refundable amount",            "w": 26 },
+        { "t": "transfer to this account",     "w": 28 },
+        { "t": "is account me transfer",       "w": 28 },
+        { "t": "rtgs",                         "w": 20 },
+        { "t": "neft kar dijiye",              "w": 24 },
+        { "t": "safe custody account",         "w": 32 },
+        { "t": "सेफ कस्टडी",                     "w": 32 },
+        { "t": "government verified account",  "w": 30 }
+      ]
+    }
+  ],
+
+  "negativeGuards": {
+    "comment": "Phrases that legitimate callers use and scammers avoid. Each occurrence subtracts from the score. This is our primary false-positive defence alongside the family-diversity rule.",
+    "markers": [
+      { "t": "we will never ask for your otp",   "w": -35 },
+      { "t": "hum kabhi otp nahi maangte",       "w": -35 },
+      { "t": "do not share your otp with anyone","w": -35 },
+      { "t": "you can call us back on the number on your card", "w": -30 },
+      { "t": "card ke peeche wale number par",   "w": -30 },
+      { "t": "visit your nearest branch",        "w": -25 },
+      { "t": "branch me aa jaiye",               "w": -25 },
+      { "t": "reference number for this call",   "w": -20 },
+      { "t": "this call is recorded for quality","w": -20 },
+      { "t": "take your time",                   "w": -15 },
+      { "t": "aaram se sochiye",                 "w": -15 },
+      { "t": "you can discuss with your family", "w": -25 },
+      { "t": "ghar walon se baat kar lijiye",    "w": -25 }
+    ]
+  }
+}
