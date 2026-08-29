@@ -186,6 +186,56 @@ class KavachService : Service() {
         text: String,
     ): Notification {
         val alerting = band == RiskBand.HIGH_RISK
+        val intents = buildPendingIntents()
+        val accentColor = bandColor(band)
+        val channelId = if (alerting) CHANNEL_ALERT else CHANNEL_STATUS
+
+        return NotificationCompat
+            .Builder(this, channelId)
+            .setSmallIcon(R.drawable.ic_shield)
+            .setColor(accentColor)
+            .setColorized(true)
+            .setSubText(NOTIFICATION_SUBTEXT)
+            .setCategory(if (alerting) NotificationCompat.CATEGORY_CALL else NotificationCompat.CATEGORY_STATUS)
+            .setContentTitle(notificationTitle(band))
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText("$text\n\n${getString(R.string.safety_no_guarantee)}"))
+            .setContentIntent(if (alerting) intents.shield else intents.open)
+            .apply {
+                if (alerting) {
+                    setCategory(NotificationCompat.CATEGORY_CALL)
+                    setFullScreenIntent(intents.shield, true)
+                    addAction(0, getString(R.string.action_dial_1930), intents.dial)
+                }
+            }.addAction(0, getString(R.string.action_stop), intents.stop)
+            .setOngoing(true)
+            .setSilent(!alerting)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .build()
+    }
+
+    private fun notificationTitle(band: RiskBand): String =
+        when (band) {
+            RiskBand.HIGH_RISK -> getString(R.string.state_high_risk_title)
+            RiskBand.CAUTION -> getString(R.string.state_caution_title)
+            RiskBand.WATCHING -> getString(R.string.app_name)
+        }
+
+    private fun bandColor(band: RiskBand): Int =
+        when (band) {
+            RiskBand.HIGH_RISK -> COLOR_HIGH_RISK
+            RiskBand.CAUTION -> COLOR_CAUTION
+            RiskBand.WATCHING -> COLOR_WATCHING
+        }
+
+    private data class NotificationIntents(
+        val open: PendingIntent,
+        val shield: PendingIntent,
+        val stop: PendingIntent,
+        val dial: PendingIntent,
+    )
+
+    private fun buildPendingIntents(): NotificationIntents {
         val open =
             PendingIntent.getActivity(
                 this,
@@ -215,33 +265,7 @@ class KavachService : Service() {
                 Intent(Intent.ACTION_DIAL, Uri.parse("tel:1930")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             )
-
-        return NotificationCompat
-            .Builder(this, if (alerting) CHANNEL_ALERT else CHANNEL_STATUS)
-            .setSmallIcon(R.drawable.ic_shield)
-            .setContentTitle(
-                when (band) {
-                    RiskBand.HIGH_RISK -> getString(R.string.state_high_risk_title)
-                    RiskBand.CAUTION -> getString(R.string.state_caution_title)
-                    RiskBand.WATCHING -> getString(R.string.app_name)
-                },
-            ).setContentText(text)
-            // docs/SAFETY.md 2 requires this sentence in the notification itself.
-            .setStyle(NotificationCompat.BigTextStyle().bigText("$text\n\n${getString(R.string.safety_no_guarantee)}"))
-            .setContentIntent(if (alerting) shield else open)
-            .apply {
-                if (alerting) {
-                    // CATEGORY_CALL is what makes a full-screen intent and the Do Not
-                    // Disturb bypass legitimate. This call is the emergency.
-                    setCategory(NotificationCompat.CATEGORY_CALL)
-                    setFullScreenIntent(shield, true)
-                    addAction(0, getString(R.string.action_dial_1930), dial)
-                }
-            }.addAction(0, getString(R.string.action_stop), stop)
-            .setOngoing(true)
-            .setSilent(!alerting)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .build()
+        return NotificationIntents(open, shield, stop, dial)
     }
 
     /**
@@ -319,6 +343,10 @@ class KavachService : Service() {
         private const val CHANNEL_STATUS = "kavach_status_v2"
         private const val CHANNEL_ALERT = "kavach_alerts_v2"
         private const val NOTIFICATION_ID = 1001
+        private const val NOTIFICATION_SUBTEXT = "KAVACH LIVE"
+        private const val COLOR_WATCHING = 0xFF22C55E.toInt()
+        private const val COLOR_CAUTION = 0xFFF59E0B.toInt()
+        private const val COLOR_HIGH_RISK = 0xFFEF4444.toInt()
 
         /** Distinct request codes, so one PendingIntent never overwrites another. */
         private const val REQUEST_OPEN = 0

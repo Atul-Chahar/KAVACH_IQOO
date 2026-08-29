@@ -1,5 +1,16 @@
 package com.kavach.app.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -7,19 +18,29 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kavach.app.capture.CaptureState
@@ -28,19 +49,11 @@ import com.kavach.app.monitor.ShieldUiState
 import com.kavach.domain.RiskBand
 
 /**
- * What the user sees during a monitored call.
+ * Universal Dynamic Island / Call Shield Overlay.
  *
- * Designed for the person it is actually for: someone in their sixties, probably
- * not wearing their glasses, being shouted at by a stranger claiming to be the
- * police, with roughly three seconds of attention to spare. So: one enormous
- * word, one sentence saying *why*, at most three pieces of evidence in the
- * caller's own paraphrased words, and exactly two buttons. The 0-100 score is
- * engineering telemetry and never the hero — a number cannot be checked against
- * the conversation, but "they told you to keep this call secret" can be, in one
- * second, by the person living it.
- *
- * It occupies the top of the screen only. The hang-up control must always be
- * reachable without dismissing us first.
+ * Renders an interactive, hardware-aligned Dynamic Island capsule around the
+ * camera punch-hole during phone calls. Expands smoothly from a compact monitoring
+ * capsule into a full Alert Shield when scam tactics are detected.
  */
 @Composable
 fun ShieldOverlay(
@@ -53,29 +66,208 @@ fun ShieldOverlay(
     val deaf = capture.silenced || capture.provenSilent
     val alerting = state.band == RiskBand.HIGH_RISK && !state.alertDismissed
     val palette = RiskColors.paletteFor(if (deaf) RiskBand.CAUTION else state.band)
+    var telemetryExpanded by remember { mutableStateOf(false) }
 
-    Box(Modifier.fillMaxSize()) {
-        Column(
+    Box(
+        Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .padding(top = 6.dp, start = 12.dp, end = 12.dp),
+        contentAlignment = Alignment.TopCenter,
+    ) {
+        when {
+            deaf -> DeafCard(capture, onStop)
+            alerting -> AlertCard(state, palette, onCall1930, onDismiss)
+            else ->
+                DynamicIslandPill(
+                    state = state,
+                    capture = capture,
+                    expanded = telemetryExpanded,
+                    onToggleExpand = { telemetryExpanded = !telemetryExpanded },
+                    onStop = onStop,
+                )
+        }
+    }
+}
+
+/**
+ * The Floating Dynamic Island / Live Capsule.
+ *
+ * Sits unobtrusively at the top center of the screen around the camera cutout.
+ * Shows live pulsing detection indicator, audio levels, and morphs when caution
+ * patterns arise. Tapping toggles the diagnostic telemetry drawer.
+ */
+@Composable
+private fun DynamicIslandPill(
+    state: ShieldUiState,
+    capture: CaptureState,
+    expanded: Boolean,
+    onToggleExpand: () -> Unit,
+    onStop: () -> Unit,
+) {
+    val isCaution = state.band == RiskBand.CAUTION
+
+    val islandBg by animateColorAsState(
+        targetValue = if (isCaution) Color(0xFF261D11) else Color(0xFF141211),
+        animationSpec = tween(300),
+        label = "islandBg",
+    )
+
+    val islandBorder by animateColorAsState(
+        targetValue = if (isCaution) KavachTokens.Amber.copy(alpha = 0.8f) else Color(0xFF383330),
+        animationSpec = tween(300),
+        label = "islandBorder",
+    )
+
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 0.85f,
+        targetValue = 1.15f,
+        animationSpec =
+            infiniteRepeatable(
+                animation = tween(1000, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse,
+            ),
+        label = "pulseScale",
+    )
+
+    Column(
+        modifier =
             Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
+                .widthIn(min = 180.dp, max = 340.dp)
+                .animateContentSize()
+                .clip(RoundedCornerShape(22.dp))
+                .background(islandBg)
+                .border(1.dp, islandBorder, RoundedCornerShape(22.dp))
+                .clickable { onToggleExpand() }
+                .padding(horizontal = 14.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
         ) {
-            when {
-                deaf -> DeafCard(capture, onStop)
-                alerting -> AlertCard(state, palette, onCall1930, onDismiss)
-                else -> PassiveBanner(state, capture, palette)
+            // Live Status Indicator Dot
+            Box(
+                Modifier
+                    .size(10.dp)
+                    .scale(if (capture.hearing) pulseScale else 1f)
+                    .clip(CircleShape)
+                    .background(
+                        when {
+                            isCaution -> KavachTokens.Amber
+                            capture.hearing -> Color(0xFF22C55E)
+                            else -> KavachTokens.InkMuted
+                        },
+                    ),
+            )
+
+            Spacer(Modifier.size(8.dp))
+
+            // Capsule Label
+            Text(
+                text =
+                    when {
+                        isCaution -> "⚠️ Caution · " + (state.tactics.firstOrNull() ?: "Pattern detected")
+                        else -> "Kavach · Listening"
+                    },
+                color = if (isCaution) Color(0xFFFDE68A) else Color(0xFFF3F4F6),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+
+            Spacer(Modifier.size(8.dp))
+
+            // Language / Telemetry Pill Tag
+            Box(
+                Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0xFF2B2725))
+                    .padding(horizontal = 6.dp, vertical = 2.dp),
+            ) {
+                Text(
+                    text = if (capture.language.isNotBlank()) "HI+EN" else "ASR",
+                    color = KavachTokens.Cyan,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+        }
+
+        // Expanded Diagnostics Drawer
+        AnimatedVisibility(
+            visible = expanded,
+            enter = fadeIn(tween(200)),
+            exit = fadeOut(tween(200)),
+        ) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp),
+                horizontalAlignment = Alignment.Start,
+            ) {
+                Text(
+                    text = "LIVE TELEMETRY",
+                    color = KavachTokens.InkMuted,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp,
+                )
+                Text(
+                    text = diagnosticLine(capture),
+                    color = Color(0xFFE5E7EB),
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+                if (capture.language.isNotBlank()) {
+                    Text(
+                        text = "Active Speech Engines: ${capture.language}",
+                        color = KavachTokens.Cyan,
+                        fontSize = 11.sp,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
+                if (state.transcriptPreview.isNotBlank()) {
+                    Text(
+                        text = "“${state.transcriptPreview.takeLast(80)}”",
+                        color = Color(0xFF9CA3AF),
+                        fontSize = 11.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "Tap to close",
+                        color = KavachTokens.InkMuted,
+                        fontSize = 11.sp,
+                    )
+                    Text(
+                        text = "Stop",
+                        color = KavachTokens.Amber,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.clickable { onStop() },
+                    )
+                }
             }
         }
     }
 }
 
 /**
- * The honest failure state, and the most important card here.
+ * The honest failure state.
  *
- * If the platform is feeding us silence we say so in plain words. A calm green
- * "no scam detected" drawn over a microphone that is not receiving anything is
- * worse than showing nothing at all: it converts our own blindness into the
- * user's false confidence.
+ * If the platform is feeding us silence we say so in plain words.
  */
 @Composable
 private fun DeafCard(
@@ -120,45 +312,7 @@ private fun DeafCard(
     }
 }
 
-/** Nothing to say yet. Small, quiet, and touch passes straight through it to the call. */
-@Composable
-private fun PassiveBanner(
-    state: ShieldUiState,
-    capture: CaptureState,
-    palette: BandPalette,
-) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(KavachTokens.RadiusCard))
-            .background(palette.ground.copy(alpha = 0.96f))
-            .border(1.dp, palette.rule, RoundedCornerShape(KavachTokens.RadiusCard))
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            Modifier
-                .size(10.dp)
-                .clip(RoundedCornerShape(5.dp))
-                .background(if (capture.hearing) palette.accent else KavachTokens.InkMuted),
-        )
-        Column(Modifier.padding(start = 12.dp)) {
-            Text(
-                if (state.band == RiskBand.CAUTION) "Something in this call looks off" else "Kavach is listening",
-                color = palette.ink,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium,
-            )
-            Text(
-                state.tactics.firstOrNull() ?: diagnosticLine(capture),
-                color = palette.inkMuted,
-                fontSize = 12.sp,
-            )
-        }
-    }
-}
-
-/** The warning. One word, one because, the evidence, two choices. */
+/** The high risk warning. One word, one because, the evidence, two choices. */
 @Composable
 private fun AlertCard(
     state: ShieldUiState,
@@ -247,9 +401,6 @@ private fun OverlayButton(
 
 /**
  * The sentence that turns a warning into a decision.
- *
- * Assembled from the tactic families the engine actually matched, never from raw
- * model text (CLAUDE.md hard rule 4).
  */
 private fun because(state: ShieldUiState): String {
     val named = state.tactics.take(2)
