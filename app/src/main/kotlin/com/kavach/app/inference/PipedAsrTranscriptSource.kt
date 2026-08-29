@@ -163,10 +163,17 @@ class PipedAsrTranscriptSource(
             }
 
             awaitClose {
+                // Order matters. Cancel the producers first so no new audio can
+                // reach the pipe, then close the Ear on the main thread where the
+                // recogniser lives. ear.close() is safe to call from here: it
+                // only posts to main internally. Tearing the recogniser down
+                // while the tee is still writing made the pipe's read end
+                // outlive its writer — a stalled recogniser session that
+                // blocked the next cycle's startListening.
                 teeJob.cancel()
                 micJob?.cancel()
                 micJob = null
-                main.post { ear.close() }
+                ear.close()
             }
         }
 

@@ -1,5 +1,6 @@
 package com.kavach.app.inference
 
+import android.util.Log
 import com.google.ai.edge.litertlm.Backend
 import com.google.ai.edge.litertlm.Contents
 import com.google.ai.edge.litertlm.Conversation
@@ -32,6 +33,9 @@ class GemmaLlmAdjudicator(
     private var conversation: Conversation? = null
     private var closed = false
 
+    /** Set the first time GPU fails; every later init goes straight to CPU. */
+    private var gpuDisabled = false
+
     private val modelPath = modelFile.absolutePath
 
     override suspend fun adjudicate(transcript: String): String? =
@@ -41,33 +45,76 @@ class GemmaLlmAdjudicator(
             // resources while this body is inside them (the use-after-free case).
             if (closed || transcript.isBlank()) return@withLock null
             val activeConversation = conversation ?: initialize()
-            runCatching {
-                withContext(Dispatchers.Default) {
-                    withTimeout(INFERENCE_TIMEOUT_MS) {
-                        val first = activeConversation.sendMessageAsync(prompt(transcript)).toList().joinToString("")
-                        if (looksLikeJson(first)) {
-                            first
-                        } else {
-                            activeConversation.sendMessageAsync(repairPrompt(first)).toList().joinToString("")
-                        }
-                    }
+            var outcome = runCatching { respond(activeConversation, transcript) }
+
+            // Some devices claim GPU support and then die mid-inference — the
+            // engine only surfaces "Can not find OpenCL library" at send time
+            // (LiteRT-LM #1860). Rebuild once on the CPU instead of losing
+            // Tier 2 for the rest of the session.
+            if (outcome.isFailure && isGpuFailure(outcome.exceptionOrNull())) {
+                val gpuError = outcome.exceptionOrNull() ?: return@withLock null
+                if (gpuError is CancellationException) throw gpuError
+                Log.w(TAG, "GPU inference failed; rebuilding the runtime on CPU", gpuError)
+                gpuDisabled = true
+                resetRuntime()
+                outcome = runCatching { respond(initialize(), transcript) }
+            }
+            val finalOutcome =
+                outcome.onFailure { error ->
+                    // Cancellation is how a session ends normally (scope teardown,
+                    // service stop). Swallowing it would corrupt structured-concurrency
+                    // cancellation; only genuine inference failures degrade to null.
+                    if (error is CancellationException) throw error
                 }
-            }.onFailure { error ->
-                // Cancellation is how a session ends normally (scope teardown,
-                // service stop). Swallowing it would corrupt structured-concurrency
-                // cancellation; only genuine inference failures degrade to null.
-                if (error is CancellationException) throw error
-            }.getOrNull()
+            return@withLock finalOutcome.getOrNull()
         }
 
-    /** Initializes the risky runtime only when the first Tier-2 request arrives. */
+    /** One full inference: ask, and if the reply is not JSON, one repair round. */
+    private suspend fun respond(
+        activeConversation: Conversation,
+        transcript: String,
+    ): String =
+        withContext(Dispatchers.Default) {
+            withTimeout(INFERENCE_TIMEOUT_MS) {
+                val first = activeConversation.sendMessageAsync(prompt(transcript)).toList().joinToString("")
+                if (looksLikeJson(first)) {
+                    first
+                } else {
+                    activeConversation.sendMessageAsync(repairPrompt(first)).toList().joinToString("")
+                }
+            }
+        }
+
+    /**
+     * Initializes the risky runtime only when the first Tier-2 request arrives.
+     *
+     * GPU first — the shipped model is the GPU build — with an automatic CPU
+     * fallback: some devices ship no OpenCL driver, and there the GPU engine
+     * either fails to initialize or dies on first send (LiteRT-LM #1860).
+     * Once GPU has failed we remember it and never pay that cost again.
+     */
     private fun initialize(): Conversation {
         check(!closed) { "adjudicator is closed" }
+        if (gpuDisabled) return initializeWith(Backend.CPU())
+        return try {
+            val gpuConversation = initializeWith(Backend.GPU())
+            Log.i(TAG, "Tier-2 engine ready on GPU")
+            gpuConversation
+        } catch (gpuError: Throwable) {
+            Log.w(TAG, "GPU engine init failed; falling back to CPU", gpuError)
+            gpuDisabled = true
+            val cpuConversation = initializeWith(Backend.CPU())
+            Log.i(TAG, "Tier-2 engine ready on CPU")
+            cpuConversation
+        }
+    }
+
+    private fun initializeWith(backend: Backend): Conversation {
         val configuredEngine =
             Engine(
                 EngineConfig(
                     modelPath = modelPath,
-                    backend = Backend.GPU(),
+                    backend = backend,
                     cacheDir = cacheDir.absolutePath,
                 ),
             )
@@ -85,6 +132,33 @@ class GemmaLlmAdjudicator(
             throw error
         }
     }
+
+    /**
+     * Drops the native runtime without closing the adjudicator: the next
+     * request re-initializes, on the CPU backend once [gpuDisabled] is set.
+     */
+    private fun resetRuntime() {
+        runCatching { conversation?.close() }
+        conversation = null
+        runCatching { engine?.close() }
+        engine = null
+    }
+
+    /**
+     * True when a failure is the known GPU-backend death (missing OpenCL
+     * driver, GPU session reset) that a CPU rebuild can fix — not a timeout
+     * or a malformed prompt.
+     */
+    private fun isGpuFailure(error: Throwable?): Boolean =
+        error != null &&
+            generateSequence(error) { it.cause }
+                .take(CAUSE_CHAIN_DEPTH)
+                .any { stage ->
+                    val message = stage.message ?: ""
+                    message.contains("OpenCL", ignoreCase = true) ||
+                        message.contains("cl_", ignoreCase = true) ||
+                        message.contains("gpu", ignoreCase = true)
+                }
 
     override fun close() {
         // best-effort synchronous detach for process teardown (onTerminate);
@@ -140,7 +214,15 @@ class GemmaLlmAdjudicator(
         """.trimIndent()
 
     private companion object {
-        const val INFERENCE_TIMEOUT_MS = 4_000L
+        const val TAG = "KavachLlm"
+
+        /** How deep down a cause chain to look for the GPU marker. */
+        const val CAUSE_CHAIN_DEPTH = 4
+
+        // A 2.97 GB E4B needs up to ~10 s to load (LiteRT-LM docs) and the
+        // repair retry doubles the inference work — 4 s killed every real
+        // Tier-2 response before it finished.
+        const val INFERENCE_TIMEOUT_MS = 12_000L
         const val MAX_TRANSCRIPT_CHARS = 6_000
         const val MAX_REPAIR_CHARS = 1_000
 
