@@ -2,7 +2,9 @@ package com.kavach.app
 
 import android.app.Application
 import android.util.Log
+import com.kavach.app.capture.CaptureDiagnostics
 import com.kavach.app.inference.GemmaLlmAdjudicator
+import com.kavach.app.inference.PipedAsrTranscriptSource
 import com.kavach.app.inference.SystemAsrTranscriptSource
 import com.kavach.app.model.ModelRepository
 import com.kavach.app.monitor.ShieldController
@@ -37,6 +39,16 @@ class KavachApplication : Application() {
     }
 
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    /**
+     * Ground truth about the microphone, shared by the accessibility service,
+     * the capture path and every screen that reports on them.
+     *
+     * Application-scoped because the accessibility service starts observing the
+     * audio mode long before any session exists, and the shield needs to read
+     * the same values the moment it appears.
+     */
+    val diagnostics = CaptureDiagnostics()
 
     val controller: ShieldController by lazy {
         ShieldController(lexicon, hindi = Locale.getDefault().language == "hi")
@@ -73,10 +85,17 @@ class KavachApplication : Application() {
     private fun fileFor(spec: com.kavach.domain.ModelSpec): File = models.fileFor(spec)
 
     /**
-     * The live pipeline. Today this is the on-device system recogniser; when the
-     * Whisper/QNN path lands it is swapped here and nothing else changes.
+     * The live pipeline.
+     *
+     * Kavach opens the microphone and feeds the on-device recogniser through a
+     * pipe, rather than letting the recogniser open the microphone itself. That
+     * is not a stylistic choice: the in-call capture exemption is granted to the
+     * UID that owns the recording, so the obvious implementation is silenced
+     * during exactly the calls this app exists for. See PipedAsrTranscriptSource.
+     *
+     * When the Whisper/QNN path lands it is swapped here and nothing else changes.
      */
-    fun createLiveTranscriptSource(): TranscriptSource = SystemAsrTranscriptSource(this)
+    fun createLiveTranscriptSource(): TranscriptSource = PipedAsrTranscriptSource(this, diagnostics)
 
     fun createDemoTranscriptSource(asset: String): TranscriptSource = FixtureTranscriptSource(this, asset)
 
