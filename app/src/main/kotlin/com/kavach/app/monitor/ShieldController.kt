@@ -6,6 +6,7 @@ import com.kavach.domain.RiskBand
 import com.kavach.domain.RiskEngine
 import com.kavach.domain.Signal
 import com.kavach.domain.TacticLexicon
+import com.kavach.domain.TranscriptAccumulator
 import com.kavach.domain.TranscriptSource
 import com.kavach.domain.Verdict
 import com.kavach.domain.VerdictSchema
@@ -74,6 +75,22 @@ class ShieldController(
      */
     private var llmVerdict: Verdict? = null
 
+    /**
+     * The rolling transcript Tier 2 is asked about, and when it was last asked.
+     *
+     * Tier 2 used to be fed one raw window, and only when that window was
+     * settled. On a real device neither held: `com.google.android.as` runs a
+     * continuous session and never fires `onResults` at all, so across a whole
+     * call every window arrived partial and the model was asked exactly nothing
+     * — 519 windows scored by Tier 1, zero questions put to a model that was
+     * loaded, verified and idle. Partials now count, rate-limited to one
+     * question per [TIER2_MIN_INTERVAL_MS], and what gets sent is the
+     * accumulated conversation rather than whichever fragment happened to be
+     * mid-flight.
+     */
+    private val tier2Transcript = TranscriptAccumulator()
+    private var lastAdjudicatedAtMs = 0L
+
     private var sessionJob: Job? = null
     private var sessionStartMs = 0L
     private var source: TranscriptSource? = null
@@ -89,6 +106,8 @@ class ShieldController(
         engine.reset()
         recorder.clear()
         llmVerdict = null
+        tier2Transcript.clear()
+        lastAdjudicatedAtMs = 0L
         source = transcriptSource
         sessionStartMs = clock()
 
@@ -114,12 +133,7 @@ class ShieldController(
                         val assessment = engine.onTranscript(window, elapsedMs())
                         logMatch(window, assessment)
                         recorder.onAssessment(assessment, clock())
-                        // Settled windows only. ASR partials re-send the same
-                        // sentence several times a second, and with a queue two
-                        // deep every one of them evicted the last, so the model
-                        // was handed a near-random fragment of a phrase still
-                        // being spoken instead of a finished utterance.
-                        if (!window.isPartial) queue.trySend(window.text)
+                        offerToTier2(queue, window)
                         publish(merged(assessment), window.text)
                     }
                     if (mode == MonitorMode.DEMO) {
@@ -187,6 +201,29 @@ class ShieldController(
             delay(TICK_MS)
             publish(merged(engine.assess(elapsedMs())), _state.value.transcriptPreview)
         }
+    }
+
+    /**
+     * Decides whether this window is worth a Tier-2 question, and what text to
+     * ask about.
+     *
+     * Every window folds into the rolling transcript first, so the model always
+     * sees the conversation rather than the fragment in flight. A settled window
+     * always asks; a partial asks only once per [TIER2_MIN_INTERVAL_MS] and only
+     * once there is enough transcript to judge. Without the partial path the
+     * model is never asked anything at all on a recogniser that does not
+     * finalise — which is the common case, not the exotic one.
+     */
+    private fun offerToTier2(
+        queue: Channel<String>,
+        window: com.kavach.domain.TranscriptWindow,
+    ) {
+        val rolling = tier2Transcript.add(window.text)
+        val now = clock()
+        val due = now - lastAdjudicatedAtMs >= TIER2_MIN_INTERVAL_MS
+        if (window.isPartial && (!due || rolling.length < TIER2_MIN_CHARS)) return
+        lastAdjudicatedAtMs = now
+        queue.trySend(rolling)
     }
 
     /**
@@ -328,6 +365,16 @@ class ShieldController(
     private companion object {
         const val TIER2_TAG = "KavachTier2"
         const val TICK_MS = 1_000L
+
+        /**
+         * How often Tier 2 may be asked. docs/ARCHITECTURE.md 3 specifies "every
+         * ~8 s"; the bounded DROP_OLDEST queue absorbs anything that arrives
+         * while the model is still thinking.
+         */
+        const val TIER2_MIN_INTERVAL_MS = 8_000L
+
+        /** Below this there is not enough conversation to judge. */
+        const val TIER2_MIN_CHARS = 40
         const val TRANSCRIPT_PREVIEW_CHARS = 240
         const val DEGRADED_NO_MODEL = "Advanced analysis unavailable"
         const val EVIDENCE_LOG_LIMIT = 6
