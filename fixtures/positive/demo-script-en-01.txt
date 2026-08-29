@@ -1,0 +1,16 @@
+# expected: HIGH_RISK (>=70) | families: AUTHORITY_IMPERSONATION, URGENCY_AND_THREAT, ISOLATION_AND_SECRECY, REMOTE_ACCESS_AND_TRANSFER, CREDENTIAL_EXTRACTION
+# ~75s spoken, English, two speakers. The live-demo script from docs/DEMO_SCRIPT.md.
+#
+# Written to escalate one family per beat rather than to be realistic prose: the
+# point is that a room full of people can watch the band change on cue and check
+# the reason against what was just said. Amber lands on beat 2, red on beat 3.
+
+CALLER: Good afternoon. This is Inspector Sharma from the CBI. Your Aadhaar is linked to a money laundering case.
+VICTIM: Sorry, who is this?
+CALLER: An arrest warrant has been issued against you. This is a non bailable offence. You will be arrested within two hours.
+VICTIM: I have not done anything.
+CALLER: You are under digital arrest. Do not tell anyone, not even your family. Keep your camera on and do not disconnect this call.
+VICTIM: Okay. Okay, I am listening.
+CALLER: For clearance you must transfer to this account. It is a safe custody account and it is fully refundable. Now install AnyDesk and turn screen sharing on.
+VICTIM: How much are we talking about?
+CALLER: Read me the code that just arrived on your phone. Tell me the OTP. And confirm your UPI PIN.
