@@ -69,9 +69,19 @@ object ModelCatalog {
 
     fun requiredFreeBytes(spec: ModelSpec): Long = spec.sizeBytes + FREE_SPACE_HEADROOM_BYTES
 
-    private const val BYTES_PER_KB = 1024.0
-    private const val BYTES_PER_MB = BYTES_PER_KB * 1024
-    private const val BYTES_PER_GB = BYTES_PER_MB * 1024
+    /**
+     * Decimal, not binary, and the difference is the whole reason this is
+     * spelled out.
+     *
+     * These numbers exist to be compared against a download page. Hugging Face
+     * lists this file as 2.97 GB; at 1024-based units Kavach rendered the same
+     * 2,969,059,328 bytes as "2.77 GB" and then told the user their correct
+     * download "should be 2.77 GB". Anyone checking would conclude they had
+     * fetched the wrong file. The publisher's unit wins.
+     */
+    private const val BYTES_PER_KB = 1000.0
+    private const val BYTES_PER_MB = BYTES_PER_KB * 1000
+    private const val BYTES_PER_GB = BYTES_PER_MB * 1000
 
     /** Renders a byte count the way a person reads it. */
     fun formatBytes(bytes: Long): String =

@@ -55,8 +55,10 @@ class ModelCatalogTest {
 
     @Test
     fun `byte formatting reads the way a person reads it`() {
-        assertEquals("2.77 GB", ModelCatalog.formatBytes(2_969_059_328L))
-        assertEquals("500 MB", ModelCatalog.formatBytes(500L * 1024 * 1024))
+        // The size the publisher's own download page shows, so the user can
+        // compare the two without converting units in their head.
+        assertEquals("2.97 GB", ModelCatalog.formatBytes(2_969_059_328L))
+        assertEquals("500 MB", ModelCatalog.formatBytes(500_000_000L))
         assertEquals("512 B", ModelCatalog.formatBytes(512))
     }
 
