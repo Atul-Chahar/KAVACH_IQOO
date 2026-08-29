@@ -113,7 +113,12 @@ class ShieldController(
                         val assessment = engine.onTranscript(window, elapsedMs())
                         logMatch(window, assessment)
                         recorder.onAssessment(assessment, clock())
-                        queue.trySend(window.text)
+                        // Settled windows only. ASR partials re-send the same
+                        // sentence several times a second, and with a queue two
+                        // deep every one of them evicted the last, so the model
+                        // was handed a near-random fragment of a phrase still
+                        // being spoken instead of a finished utterance.
+                        if (!window.isPartial) queue.trySend(window.text)
                         publish(merged(assessment), window.text)
                     }
                 }.onFailure { error ->

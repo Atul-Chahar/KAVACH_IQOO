@@ -71,7 +71,7 @@ class KavachApplication : Application() {
                     ready?.let { modelReady ->
                         ModelCatalog.byId(modelReady.specId)?.let { spec ->
                             fileFor(spec).takeIf { it.isFile && it.length() == spec.sizeBytes }?.let { file ->
-                                GemmaLlmAdjudicator(file, cacheDir)
+                                GemmaLlmAdjudicator(file, cacheDir, lexicon.families.map { it.id })
                             }
                         }
                     }
