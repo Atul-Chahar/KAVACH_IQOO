@@ -29,6 +29,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,6 +48,7 @@ import com.kavach.app.capture.CaptureState
 import com.kavach.app.capture.audioModeName
 import com.kavach.app.monitor.ShieldUiState
 import com.kavach.domain.RiskBand
+import kotlinx.coroutines.delay
 
 /**
  * Universal Dynamic Island / Call Shield Overlay.
@@ -63,7 +65,28 @@ fun ShieldOverlay(
     onDismiss: () -> Unit,
     onStop: () -> Unit,
 ) {
-    val deaf = capture.silenced || capture.provenSilent
+    // The session takes a moment to come up after the shield appears, so a
+    // not-yet-listening state is only believed once the grace window has passed.
+    // Without it the card would flash on every call before capture starts.
+    var graceElapsed by remember { mutableStateOf(false) }
+    LaunchedEffect(state.monitoring) {
+        graceElapsed = false
+        if (!state.monitoring) {
+            delay(STARTUP_GRACE_MS)
+            graceElapsed = true
+        }
+    }
+
+    // Every way this shield can be on screen while hearing nothing.
+    //
+    // `provenSilent` alone was not enough and the gap was the dangerous kind: it
+    // needs 150 frames before it will commit, so a capture that never started at
+    // all — foreground service refused, permission revoked, AudioRecord failed —
+    // leaves framesRead at 0, reports "not proven silent", and the user gets a
+    // calm pulsing pill over a live scam. A false all-clear is the one outcome
+    // docs/SAFETY.md forbids, so silence of unknown cause is now said out loud.
+    val silentReason = silentReason(state, capture, graceElapsed)
+    val deaf = silentReason != null
     val alerting = state.band == RiskBand.HIGH_RISK && !state.alertDismissed
     val palette = RiskColors.paletteFor(if (deaf) RiskBand.CAUTION else state.band)
     var telemetryExpanded by remember { mutableStateOf(false) }
@@ -76,8 +99,14 @@ fun ShieldOverlay(
         contentAlignment = Alignment.TopCenter,
     ) {
         when {
-            deaf -> DeafCard(capture, onStop)
+            // The warning outranks the can't-hear card, and the order is the
+            // whole point. Both were reachable at once — the platform mutes us
+            // part-way through a call we have *already* scored HIGH_RISK — and
+            // with the deaf branch first the live scam warning was replaced by
+            // "Kavach can't hear this call". The deaf card exists to prevent a
+            // false all-clear; an alert is not an all-clear, so it wins.
             alerting -> AlertCard(state, palette, onCall1930, onDismiss)
+            silentReason != null -> DeafCard(silentReason, capture, onStop)
             else ->
                 DynamicIslandPill(
                     state = state,
@@ -271,6 +300,7 @@ private fun DynamicIslandPill(
  */
 @Composable
 private fun DeafCard(
+    reason: String,
     capture: CaptureState,
     onStop: () -> Unit,
 ) {
@@ -290,11 +320,17 @@ private fun DeafCard(
             letterSpacing = 1.sp,
         )
         Text(
-            "Android is muting our microphone. We are not analysing anything — " +
-                "do not treat the absence of a warning as safety.",
+            reason,
             color = KavachTokens.Ink,
             fontSize = 16.sp,
             modifier = Modifier.padding(top = 8.dp),
+        )
+        Text(
+            "Do not treat the absence of a warning as safety.",
+            color = KavachTokens.Ink,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(top = 6.dp),
         )
         Text(
             diagnosticLine(capture),
@@ -411,6 +447,31 @@ private fun because(state: ShieldUiState): String {
     }
 }
 
+/**
+ * Why Kavach cannot hear right now, or null if it can.
+ *
+ * Ordered most-specific first, because the sentence the user reads has to name
+ * the thing they can actually fix. "The service was refused" and "the platform
+ * muted us" lead to completely different next steps.
+ */
+private fun silentReason(
+    state: ShieldUiState,
+    capture: CaptureState,
+    graceElapsed: Boolean,
+): String? =
+    when {
+        state.failureReason != null -> state.failureReason
+
+        !state.monitoring && graceElapsed ->
+            "Kavach is not listening. The microphone service did not start — Android may have " +
+                "refused it, or the permission was withdrawn. Open Kavach and start a session by hand."
+
+        capture.silenced || capture.provenSilent ->
+            "Android is muting our microphone, so nothing is being analysed."
+
+        else -> null
+    }
+
 /** Ground truth, unedited. It is on screen because it is what makes the claim checkable. */
 private fun diagnosticLine(capture: CaptureState): String {
     val level = if (capture.rmsDb.isFinite()) "${capture.rmsDb.toInt()} dB" else "silence"
@@ -418,3 +479,6 @@ private fun diagnosticLine(capture: CaptureState): String {
 }
 
 private const val MAX_EVIDENCE = 3
+
+/** How long the session gets to come up before the shield calls it silent. */
+private const val STARTUP_GRACE_MS = 4_000L

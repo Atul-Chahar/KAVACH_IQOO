@@ -135,4 +135,5 @@
     <string name="verdict_high_risk_body">That call matched a known scam pattern (score %1$d of 100). If you shared an OTP, PIN or money, report it now on 1930.</string>
     <string name="raise_blocked_title">Kavach could not watch that call</string>
     <string name="raise_blocked_body">Display-over-apps permission is off, so the shield could not appear for the incoming call. Tap to allow it, and the next call is watched automatically.</string>
+    <string name="notification_subtext">KAVACH LIVE</string>
 </resources>

@@ -380,25 +380,35 @@ private fun SessionHeader(
             )
         }
 
-        if (state.band == RiskBand.HIGH_RISK) {
-            Text(
-                stringResource(R.string.families_of_total, state.familiesSeen, state.familiesTotal),
-                style = MaterialTheme.typography.labelSmall,
-                color = palette.inkSoft,
-            )
-        } else if (state.mode == MonitorMode.DEMO) {
-            Text(
-                stringResource(R.string.demo_badge),
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = 0.14.em,
-                color = KavachTokens.Paper,
-                modifier =
-                    Modifier
-                        .clip(RoundedCornerShape(KavachTokens.RadiusTag))
-                        .background(KavachTokens.Ink)
-                        .padding(horizontal = 10.dp, vertical = 5.dp),
-            )
+        // The badge and the family count sit side by side rather than in an
+        // either/or. They were exclusive, with HIGH_RISK winning, so the DEMO
+        // badge vanished at precisely the moment the screen is least
+        // distinguishable from a real scam alert — full-bleed red, "LIKELY
+        // SCAM", 1930 on offer. A replayed fixture must never be able to
+        // impersonate a live verdict to someone who did not start it.
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (state.mode == MonitorMode.DEMO) {
+                Text(
+                    stringResource(R.string.demo_badge),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 0.14.em,
+                    color = KavachTokens.Paper,
+                    modifier =
+                        Modifier
+                            .clip(RoundedCornerShape(KavachTokens.RadiusTag))
+                            .background(KavachTokens.Ink)
+                            .padding(horizontal = 10.dp, vertical = 5.dp),
+                )
+                GapW(8.dp)
+            }
+            if (state.band == RiskBand.HIGH_RISK) {
+                Text(
+                    stringResource(R.string.families_of_total, state.familiesSeen, state.familiesTotal),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = palette.inkSoft,
+                )
+            }
         }
     }
 }

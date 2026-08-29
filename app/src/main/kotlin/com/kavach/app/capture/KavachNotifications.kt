@@ -43,8 +43,13 @@ object KavachNotifications {
                 NotificationManager.IMPORTANCE_HIGH,
             ).apply {
                 description = context.getString(com.kavach.app.R.string.notification_channel_alert_description)
-                enableVibration(true)
-                vibrationPattern = KavachService.HIGH_RISK_PATTERN
+                // Vibration is deliberately NOT set on the channel. KavachService
+                // already buzzes explicitly on every band change, so a channel
+                // pattern meant HIGH_RISK fired both and landed as a four-pulse
+                // rattle — the siren docs/PRD.md 5 rules out. The explicit path
+                // is the one that is testable and the one that survives an OEM
+                // ignoring channel vibration, so the channel defers to it.
+                enableVibration(false)
                 lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
                 setBypassDnd(true)
             },
