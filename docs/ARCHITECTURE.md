@@ -31,19 +31,63 @@
 
 ## 2. The constraint that shapes everything
 
-**Android has blocked third-party apps from reading call audio since Android 10.** `MediaRecorder.AudioSource.VOICE_CALL` is unavailable without root. `CallScreeningService` provides caller number, direction, and STIR/SHAKEN verification status — and no audio at all.
+**Android has blocked third-party apps from reading call audio since Android 10.** `MediaRecorder.AudioSource.VOICE_CALL` is unavailable without `CAPTURE_AUDIO_OUTPUT`, which is `signature|privileged` and cannot be granted by `pm grant`. `CallScreeningService` provides caller number, direction, and STIR/SHAKEN verification status — and no audio at all.
 
 **So we do not tap the call. We capture ambient room audio.**
 
-| | Why this is the right design, not a workaround |
-|---|---|
-| Legally cleaner | We are not recording a call. We hold a rolling in-memory buffer of ambient audio on the user's own device. India follows one-party consent. |
-| Technically simpler | Needs only `RECORD_AUDIO` + a `microphone` foreground service. No accessibility hacks, no root, no OEM-specific behaviour. |
-| Strictly more general | Works identically for cellular, WhatsApp, Telegram, Meet. **Digital-arrest scams run mostly on WhatsApp video calls**, which a call-audio tap would miss entirely. |
-| Matches the victim's actual posture | Digital-arrest victims are told to stay on speakerphone/video for hours, phone propped up. Ambient capture is exactly right for that situation. |
-| Demoable honestly | A second device plays a scripted scam aloud; the phone hears it through its mic. Nothing stubbed, nothing faked. |
+### 2.1 Ambient capture is silenced too — and this document used to be wrong about that
 
-**Do not attempt `VOICE_CALL` capture. It will not work, and trying will cost hours.**
+An earlier version of this section claimed ambient capture "works identically for cellular, WhatsApp, Telegram, Meet". It does not, and the reason matters more than the correction.
+
+Android's audio policy does not key on the audio *source*. It keys on the audio *mode*. From [Sharing audio input](https://developer.android.com/media/platform/sharing-audio-input):
+
+> A voice call is active if the audio mode returned by `AudioManager.getMode()` is `MODE_IN_CALL` or `MODE_IN_COMMUNICATION`. […] The call always receives audio. The app can capture audio if it is an accessibility service. The app can capture the voice call if it is a privileged (pre-installed) app with permission `CAPTURE_AUDIO_OUTPUT`.
+
+A cellular call sets `MODE_IN_CALL`. WhatsApp, Meet and Telegram set `MODE_IN_COMMUNICATION`. Speakerphone changes nothing. In all of those, an ordinary app's `AudioRecord` is **silenced — not failed**: `read()` returns frames of zeroes, no exception is thrown, and nothing appears in logcat. An app that does not measure its own input cannot tell this apart from a quiet room.
+
+### 2.2 The one exemption a third party can reach
+
+From the same page:
+
+> **Accessibility service + ordinary app.** If the service's UI is on top, both the service and the app receive audio input.
+
+Three conditions, all of which Kavach controls, and one that is easy to miss:
+
+1. **An enabled `AccessibilityService` in our package.** `KavachAccessibilityService` reads nothing — `onAccessibilityEvent` is empty and `canRetrieveWindowContent` is false. It exists to place our UID on the list the audio policy consults.
+2. **Audio source `VOICE_RECOGNITION` or `HOTWORD`.** `MIC` is not on the list, so `MicCapture` refuses to fall back to it while the mode says a call is active — falling back would open successfully and then return silence.
+3. **Our UI on top.** A foreground service is not enough; the process must be at `PROCESS_STATE_TOP`. `ShieldOverlayActivity` therefore stays on screen for the whole call, translucent and untouchable, rather than flashing and finishing.
+4. **We must own the recording.** The exemption is matched against the UID that opened the `AudioRecord`. `SpeechRecognizer` opens the microphone in the recogniser's own process, so handing it the job — the obvious implementation, and the one Kavach shipped first — is silenced in-call no matter what the other three conditions say. `PipedAsrTranscriptSource` opens the microphone here and feeds the recogniser through a `ParcelFileDescriptor` pipe via `RecognizerIntent.EXTRA_AUDIO_SOURCE`.
+
+### 2.3 Starting without the user opening the app
+
+`SYSTEM_ALERT_WINDOW` is a documented exemption from the background-activity-launch restriction. `KavachAccessibilityService` watches `AudioManager`'s mode — one integer, no notifications read, no numbers read, and it covers VoIP and cellular alike — and raises `ShieldOverlayActivity` when a call begins. Once that activity is visible Kavach is a foreground app, so the Android 14+ while-in-use restriction on background-started microphone foreground services does not apply: there is no exemption to claim, because the start is not a background start.
+
+The two constraints solve each other. The window that has to be on screen for the exemption is the same window the warning is drawn in.
+
+### 2.4 What we hear, precisely
+
+We capture the microphone, not the call. Say this out loud rather than let it be discovered.
+
+| Situation | What Kavach hears |
+|---|---|
+| Earpiece call | The victim's half only |
+| **Speakerphone / video call** | **Both halves, through room acoustics.** The digital-arrest posture, and our demo default |
+| Wired or Bluetooth headset | Almost nothing. Detected and reported, never hidden |
+
+`CaptureDiagnostics` measures `isClientSilenced` and per-frame RMS continuously, and `ShieldOverlay` renders "Kavach can't hear this call" instead of a calm all-clear whenever the stream is provably silent. A false reassurance is worse than no app.
+
+### 2.5 Why ambient capture is still the right design
+
+| | |
+|---|---|
+| Legally cleaner | We are not recording a call. We hold a rolling in-memory buffer of ambient audio on the user's own device, and it never touches disk. |
+| Strictly more general | Covers WhatsApp and Meet, where digital-arrest scams actually run, as well as in-person pressure and a call on someone else's phone. |
+| Matches the victim's posture | Digital-arrest victims are told to stay on speakerphone or video for hours with the phone propped up. |
+| Demoable honestly | A second device plays a scripted scam aloud; the phone hears it through its microphone. Nothing stubbed. |
+
+**Do not attempt `VOICE_CALL` capture.** Nor `MediaProjection`/`AudioPlaybackCapture`, which cannot capture `USAGE_VOICE_COMMUNICATION`, nor `CONCURRENT_AUDIO_RECORD_BYPASS`, which is privileged. Becoming the default dialer does not grant call-audio capture either; it grants the in-call screen. Google's Scam Detection is privileged, not merely default.
+
+**Play policy note:** Google prohibits using the Accessibility API for call recording. That is store policy, not a platform block — this build is sideloaded, and the shipping path is the dialer role. Say so from the stage rather than get caught.
 
 ---
 
