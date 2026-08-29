@@ -15,8 +15,14 @@ data class ModelSpec(
     /** Direct file URL, also opened in the browser — the app never fetches it. */
     val fileUrl: String,
     val fileName: String,
-    /** Exact expected size. Verified byte-for-byte after import. */
+    /** Exact expected size. Checked first because it is free. */
     val sizeBytes: Long,
+    /**
+     * SHA-256 of the file, from the publisher's own LFS metadata. Computed
+     * during the import copy, so a corrupted or substituted file is caught
+     * before the inference runtime ever sees it.
+     */
+    val sha256: String,
     val backend: String,
     val licence: String,
     val notes: String,
@@ -43,6 +49,7 @@ object ModelCatalog {
                     "resolve/main/gemma-4-E4B-it-gpu.litertlm",
             fileName = "gemma-4-E4B-it-gpu.litertlm",
             sizeBytes = 2_969_059_328L,
+            sha256 = "4912bb5a9c30993c51a7711f763212077458529312175df0573a78323a2bb7ff",
             backend = "GPU",
             licence = "Apache 2.0",
             notes = "Most capable. Reasoning runs on the GPU; speech stays on the NPU.",

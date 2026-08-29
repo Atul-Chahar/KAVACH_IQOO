@@ -11,7 +11,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -24,6 +26,8 @@ import com.kavach.app.ui.ReportScreen
 import com.kavach.app.ui.ShieldScreen
 import com.kavach.app.ui.ShieldViewModel
 import com.kavach.domain.ModelState
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /** Single activity, unidirectional data flow, one StateFlow (CLAUDE.md Stack). */
 class MainActivity : ComponentActivity() {
@@ -43,7 +47,6 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun KavachApp(viewModel: ShieldViewModel) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val context = LocalContext.current
 
     var showFixtures by remember { mutableStateOf(false) }
     var report by remember { mutableStateOf<String?>(null) }
@@ -114,10 +117,20 @@ private fun ModelSetupRoute(
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
+
+    // Read free space when the screen opens and when the import finishes —
+    // never as a parameter expression. Import progress emits roughly every
+    // 8 MB, so an inline call would stat the filesystem on the composition
+    // thread hundreds of times during a single copy.
+    var freeSpaceBytes by remember { mutableLongStateOf(0L) }
+    LaunchedEffect(state::class) {
+        freeSpaceBytes = withContext(Dispatchers.IO) { viewModel.freeSpaceBytes() }
+    }
+
     ModelSetupScreen(
         spec = viewModel.modelSpec,
         state = state,
-        freeSpaceBytes = viewModel.freeSpaceBytes(),
+        freeSpaceBytes = freeSpaceBytes,
         // Handing the URL to the browser is the whole design: Kavach has no
         // INTERNET permission and must never acquire one.
         onDownload = { context.startActivity(viewModel.downloadIntent()) },

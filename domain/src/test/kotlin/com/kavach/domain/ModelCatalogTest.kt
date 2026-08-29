@@ -26,6 +26,17 @@ class ModelCatalogTest {
     }
 
     @Test
+    fun `every entry carries a full sha256 digest`() {
+        ModelCatalog.all.forEach { spec ->
+            assertEquals(64, spec.sha256.length, "${spec.id} digest must be 64 hex characters")
+            assertTrue(
+                spec.sha256.all { it in "0123456789abcdef" },
+                "${spec.id} digest must be lowercase hex, got ${spec.sha256}",
+            )
+        }
+    }
+
+    @Test
     fun `ids are unique`() {
         assertEquals(
             ModelCatalog.all.size,

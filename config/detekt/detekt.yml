@@ -33,9 +33,9 @@ exceptions:
   TooGenericExceptionCaught:
     # ARCHITECTURE.md §8 requires broad catches around model/NPU/mic init:
     # a degraded app beats a crashed one.
-    excludes: ['**/inference/**', '**/capture/**']
+    excludes: ['**/inference/**', '**/capture/**', '**/model/**']
   SwallowedException:
-    excludes: ['**/inference/**', '**/capture/**']
+    excludes: ['**/inference/**', '**/capture/**', '**/model/**']
 
 naming:
   FunctionNaming:
