@@ -1,6 +1,7 @@
 package com.kavach.app.inference
 
 import android.Manifest
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -15,19 +16,23 @@ import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.util.Log
+import androidx.annotation.RequiresApi
 import com.kavach.app.capture.CaptureDiagnostics
 import com.kavach.app.capture.MicCapture
+import com.kavach.app.capture.MicOwner
 import com.kavach.domain.AudioRingBuffer
 import com.kavach.domain.TranscriptSource
 import com.kavach.domain.TranscriptWindow
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.ProducerScope
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import java.io.IOException
+import java.util.Locale
 
 /**
  * The live pipeline: **Kavach opens the microphone, and every recogniser reads
@@ -50,34 +55,59 @@ import java.io.IOException
  * transcribes the Hindi properly, but only 16 markers are written in that script.
  * Either one alone misses most of a real call.
  *
- * Owning the microphone makes the fix cheap: the PCM is ours, so we tee it into
- * one pipe per language and run the recognisers side by side, merging both
- * transcript streams into the same engine. Latin markers match the English
- * stream, Devanagari markers match the Hindi stream, and the engine's existing
- * span dedup stops a phrase both of them heard from scoring twice.
+ * Running both at once is the obvious answer, and the device refuses it: a second
+ * concurrent recogniser returns `ERROR_RECOGNIZER_BUSY`, because the on-device
+ * service holds one session at a time. So we alternate instead. The recogniser
+ * ends its session at every utterance boundary anyway and the microphone behind
+ * it never stops, so changing language between utterances costs nothing we were
+ * not already paying. Over a conversation both scripts get heard, the engine
+ * accumulates across the whole session, and its existing span dedup stops a
+ * phrase heard twice from scoring twice.
  *
  * Fallbacks are written first (CLAUDE.md working style). A language the device
- * has not downloaded is dropped from the set rather than retried forever; if
- * every language is missing, or the recogniser will not take a piped source at
- * all, the session degrades to a stated reason instead of a silent nothing.
+ * has not downloaded is retried and triggers on-demand background model downloads
+ * via Android 13+ APIs.
  */
 class PipedAsrTranscriptSource(
     private val context: Context,
     private val diagnostics: CaptureDiagnostics,
-    private val languages: List<String> = DEFAULT_LANGUAGES,
+    private val languages: List<String> = defaultLanguages(),
 ) : TranscriptSource {
     private val main = Handler(Looper.getMainLooper())
     private var startedAtMs = 0L
+
+    /** Languages still in rotation. Shrinks as the device tells us what it lacks. */
     private val live = mutableListOf<String>()
-    private var ears: List<Ear> = emptyList()
+
+    /** Speech model manager for on-demand downloading of missing offline models. */
+    private val modelManager = SpeechModelManager(context)
+
+    /**
+     * Whether we are still feeding the recogniser our own microphone.
+     *
+     * `RecognizerIntent` allows a recogniser not to support a supplied audio
+     * source, and this device refuses one in a way that looks nothing like
+     * "unsupported": it answers `ERROR_LANGUAGE_UNAVAILABLE` within a few
+     * milliseconds, for a language it handles perfectly well when it opens the
+     * microphone itself. Believing that answer retired every language and left
+     * the app deaf.
+     *
+     * So the piped path is tried first, because it is the only one that can work
+     * during a call, and if the device will not take it we hand the microphone
+     * back. That mode works everywhere except during a call — which is exactly
+     * where the UI then says, out loud, that it cannot hear.
+     */
+    private var piped = true
+
+    /** Cancels our own capture when we stop being the microphone's owner. */
+    private var micJob: Job? = null
 
     override val engineName: String
-        get() =
-            if (live.isEmpty()) {
-                "Kavach mic → on-device ASR"
-            } else {
-                "Kavach mic → on-device ASR (${live.joinToString(" + ")})"
-            }
+        get() {
+            val owner = if (piped) "Kavach mic" else "recogniser mic"
+            val tongues = if (live.isEmpty()) "" else " (${live.joinToString(" + ")})"
+            return "$owner → on-device ASR$tongues"
+        }
 
     override suspend fun start() {
         startedAtMs = System.currentTimeMillis()
@@ -87,35 +117,22 @@ class PipedAsrTranscriptSource(
 
     override fun transcripts(): Flow<TranscriptWindow> =
         callbackFlow {
-            if (!SystemAsrTranscriptSource.isAvailable(context)) {
-                close(IllegalStateException(SystemAsrTranscriptSource.UNAVAILABLE_MESSAGE))
-                return@callbackFlow
-            }
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-                close(IllegalStateException(SystemAsrTranscriptSource.UNAVAILABLE_MESSAGE))
-                return@callbackFlow
-            }
+            val audioManager =
+                checkPrerequisites(context) ?: run {
+                    close(IllegalStateException(SystemAsrTranscriptSource.UNAVAILABLE_MESSAGE))
+                    return@callbackFlow
+                }
 
-            val audioManager = context.getSystemService(AudioManager::class.java)
-            diagnostics.onAudioMode(audioManager?.mode ?: 0)
-            if (audioManager == null) {
-                close(IllegalStateException("no audio service"))
-                return@callbackFlow
-            }
+            triggerMissingModelCheck(languages)
 
             val mic = MicCapture(audioManager, diagnostics)
-            val hearing = languages.map { Ear(it, this) }
-            ears = hearing
+            val ear = Ear(this)
             live.clear()
             live += languages
 
-            val micJob =
+            micJob =
                 launch(Dispatchers.IO) {
                     try {
-                        // Checked at the lint-visible boundary: MicCapture.run carries
-                        // @RequiresPermission(RECORD_AUDIO). The service refuses to
-                        // start without the grant, so a missing permission here is a
-                        // state to report, not crash on.
                         if (context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) !=
                             PackageManager.PERMISSION_GRANTED
                         ) {
@@ -130,33 +147,58 @@ class PipedAsrTranscriptSource(
                     }
                 }
 
-            // One reader, many writers. The microphone thread is never the thing
-            // that blocks: MicCapture's channel is DROP_OLDEST, so a recogniser
-            // that stalls costs audio quality and nothing else.
             val teeJob =
                 launch(Dispatchers.IO) {
                     mic.frames().collect { frame ->
                         val bytes = frame.toLittleEndianBytes()
-                        hearing.forEach { it.write(bytes) }
+                        ear.write(bytes)
                     }
                 }
 
             main.post {
-                hearing.forEach { it.open(context) }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    ear.open(context)
+                }
                 publishLive()
             }
 
             awaitClose {
                 teeJob.cancel()
-                micJob.cancel()
-                main.post { hearing.forEach { it.close() } }
+                micJob?.cancel()
+                micJob = null
+                main.post { ear.close() }
             }
         }
 
-    /** Republishes which languages are still listening, after any of them retires. */
+    private fun checkPrerequisites(context: Context): AudioManager? {
+        if (!SystemAsrTranscriptSource.isAvailable(context) || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            return null
+        }
+        val audioManager = context.getSystemService(AudioManager::class.java)
+        diagnostics.onAudioMode(audioManager?.mode ?: 0)
+        if (context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            return null
+        }
+        return audioManager
+    }
+
+    private fun triggerMissingModelCheck(targetLanguages: List<String>) {
+        runCatching {
+            modelManager.checkSupport { status ->
+                val missing =
+                    targetLanguages.filter { lang ->
+                        status.installedLanguages.none { it.startsWith(lang.substringBefore("-"), ignoreCase = true) }
+                    }
+                if (missing.isNotEmpty()) {
+                    Log.i(TAG, "Triggering background download for missing offline models: $missing")
+                    modelManager.triggerDownload(missing)
+                }
+            }
+        }
+    }
+
+    /** Republishes which languages are still in rotation, after any of them retires. */
     private fun publishLive() {
-        live.clear()
-        live += ears.filter { it.alive }.map { it.language }
         diagnostics.onLanguage(live.joinToString(" + ").ifEmpty { null })
     }
 
@@ -169,35 +211,48 @@ class PipedAsrTranscriptSource(
      * into the gap between restarts no longer does.
      */
     private inner class Ear(
-        val language: String,
         private val scope: ProducerScope<TranscriptWindow>,
     ) {
-        var alive: Boolean = true
-            private set
-
         private var recognizer: SpeechRecognizer? = null
         private var pipe: Pipe? = null
         private val lock = Any()
         private var stopped = false
+        private var turn = 0
 
+        /** Consecutive language failures, per language. */
+        private val languageFailures = mutableMapOf<String, Int>()
+
+        private var pipeRejections = 0
+        private var heardAnything = false
+
+        private fun handBackMicrophone() {
+            if (!piped) return
+            Log.w(TAG, "device will not read our audio pipe; handing the microphone to the recogniser")
+            piped = false
+            endCycle()
+            micJob?.cancel()
+            micJob = null
+            diagnostics.onOwner(MicOwner.RECOGNISER)
+            diagnostics.onCaptureError(PIPE_UNSUPPORTED_MESSAGE)
+        }
+
+        /** The language for this cycle. Advances one step per utterance. */
+        private val language: String
+            get() = live.getOrElse(turn % live.size.coerceAtLeast(1)) { FALLBACK_LANGUAGE }
+
+        @RequiresApi(Build.VERSION_CODES.S)
         fun open(context: Context) {
             runCatching {
-                // Flow entry refuses SDK_INT < S before this can run (see
-                // transcripts()); the guard satisfies the API-31 contract lint
-                // cannot infer across the callbackFlow boundary.
-                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-                    alive = false
-                    return
-                }
                 recognizer =
-                    SpeechRecognizer.createOnDeviceSpeechRecognizer(context).apply {
+                    createRecogniser(context).apply {
                         setRecognitionListener(listener)
                     }
             }.onFailure {
-                Log.w(TAG, "[$language] recogniser unavailable", it)
-                alive = false
+                Log.w(TAG, "recogniser unavailable", it)
+                scope.close(IllegalStateException(SystemAsrTranscriptSource.UNAVAILABLE_MESSAGE))
+                return
             }
-            if (alive) beginCycle()
+            beginCycle()
         }
 
         fun write(bytes: ByteArray) {
@@ -223,50 +278,88 @@ class PipedAsrTranscriptSource(
         }
 
         private fun beginCycle() {
-            if (stopped || !alive) return
+            if (stopped) return
+            if (live.isEmpty()) {
+                // Ensure we never completely run out of fallback language
+                live += FALLBACK_LANGUAGE
+                publishLive()
+            }
             endCycle()
 
-            val fresh = runCatching { Pipe.open() }.getOrNull()
-            if (fresh == null) {
-                Log.w(TAG, "[$language] could not open a pipe")
-                alive = false
-                return
-            }
-            synchronized(lock) { pipe = fresh }
-
+            val listening = language
             val intent =
                 Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                     putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, language)
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, listening)
                     putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
                     putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
-                    putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE, fresh.read)
-                    putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE_SAMPLING_RATE, AudioRingBuffer.SAMPLE_RATE_HZ)
-                    putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE_CHANNEL_COUNT, 1)
-                    putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE_ENCODING, AudioFormat.ENCODING_PCM_16BIT)
                 }
+
+            if (piped) {
+                val fresh = runCatching { Pipe.open() }.getOrNull()
+                if (fresh == null) {
+                    Log.w(TAG, "could not open a pipe; handing the mic back")
+                    handBackMicrophone()
+                } else {
+                    synchronized(lock) { pipe = fresh }
+                    intent.putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE, fresh.read)
+                    intent.putExtra(
+                        RecognizerIntent.EXTRA_AUDIO_SOURCE_SAMPLING_RATE,
+                        AudioRingBuffer.SAMPLE_RATE_HZ,
+                    )
+                    intent.putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE_CHANNEL_COUNT, 1)
+                    intent.putExtra(
+                        RecognizerIntent.EXTRA_AUDIO_SOURCE_ENCODING,
+                        AudioFormat.ENCODING_PCM_16BIT,
+                    )
+                }
+            }
 
             main.post {
                 if (!stopped) {
                     runCatching { recognizer?.startListening(intent) }
-                        .onFailure { Log.w(TAG, "[$language] startListening failed", it) }
+                        .onFailure { Log.w(TAG, "[$listening] startListening failed", it) }
                 }
             }
         }
 
-        /** This language is not downloaded. Drop it and let the others carry on. */
-        private fun retire(reason: String) {
-            Log.w(TAG, "[$language] retiring: $reason")
-            alive = false
-            endCycle()
-            runCatching { recognizer?.destroy() }
-            recognizer = null
+        /**
+         * Records a language failure, triggers background model downloads if missing,
+         * and only retires the language after repeated failures while preserving fallbacks.
+         */
+        private fun noteLanguageFailure(error: Int) {
+            if (piped && !heardAnything) {
+                pipeRejections++
+                Log.w(TAG, "[$language] error $error while piped ($pipeRejections/$MAX_PIPE_REJECTIONS)")
+                if (pipeRejections >= MAX_PIPE_REJECTIONS) handBackMicrophone()
+                return
+            }
+
+            val failing = language
+            val count = (languageFailures[failing] ?: 0) + 1
+            languageFailures[failing] = count
+            Log.w(TAG, "[$failing] language error $error ($count/$MAX_LANGUAGE_FAILURES)")
+
+            // On missing model error, trigger background download for the failing language
+            if (error == ERROR_LANGUAGE_UNAVAILABLE || error == ERROR_LANGUAGE_NOT_SUPPORTED) {
+                runCatching { modelManager.triggerDownload(listOf(failing)) }
+            }
+
+            if (count < MAX_LANGUAGE_FAILURES) return
+
+            // If we have more than 1 language in rotation, retire this failing one temporarily
+            if (live.size > 1) {
+                Log.w(TAG, "[$failing] retiring temporarily after $count attempt(s)")
+                live.remove(failing)
+                publishLive()
+            }
         }
 
         private val listener =
             object : RecognitionListener {
                 override fun onResults(results: Bundle?) {
                     emit(results, partial = false)
+                    turn++
                     beginCycle()
                 }
 
@@ -274,24 +367,29 @@ class PipedAsrTranscriptSource(
 
                 override fun onError(error: Int) {
                     when (error) {
-                        // Normal in a quiet room. Not evidence of anything wrong.
                         SpeechRecognizer.ERROR_NO_MATCH,
                         SpeechRecognizer.ERROR_SPEECH_TIMEOUT,
-                        -> beginCycle()
+                        -> {
+                            turn++
+                            beginCycle()
+                        }
+
+                        ERROR_LANGUAGE_NOT_SUPPORTED, ERROR_LANGUAGE_UNAVAILABLE -> {
+                            noteLanguageFailure(error)
+                            turn++
+                            main.postDelayed({ if (!stopped) beginCycle() }, LANGUAGE_BACKOFF_MS)
+                        }
+
+                        SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> {
+                            Log.w(TAG, "[$language] recogniser busy, backing off")
+                            turn++
+                            main.postDelayed({ if (!stopped) beginCycle() }, BUSY_BACKOFF_MS)
+                        }
 
                         else -> {
-                            // The two language-pack misses (API 31 constants 12 and 13)
-                            // retire this ear instead of retrying: no amount of
-                            // backoff installs a missing model. Kept out of the
-                            // IntDef-exhaustive switch above because the compile-time
-                            // constants are matched as plain ints.
-                            if (error == ERROR_LANGUAGE_NOT_SUPPORTED || error == ERROR_LANGUAGE_UNAVAILABLE) {
-                                retire("language pack not installed (error $error)")
-                                publishLive()
-                            } else {
-                                Log.w(TAG, "[$language] recogniser error $error")
-                                main.postDelayed({ if (!stopped) beginCycle() }, ERROR_BACKOFF_MS)
-                            }
+                            Log.w(TAG, "[$language] recogniser error $error")
+                            turn++
+                            main.postDelayed({ if (!stopped) beginCycle() }, ERROR_BACKOFF_MS)
                         }
                     }
                 }
@@ -321,6 +419,8 @@ class PipedAsrTranscriptSource(
                             ?.firstOrNull()
                             ?.takeIf { it.isNotBlank() }
                             ?: return
+                    heardAnything = true
+                    languageFailures.remove(language)
                     diagnostics.onTranscript()
                     val now = System.currentTimeMillis() - startedAtMs
                     scope.trySend(TranscriptWindow(text, now - WINDOW_MS, now, isPartial = partial))
@@ -329,11 +429,35 @@ class PipedAsrTranscriptSource(
     }
 
     /**
+     * Picks a recognition service, most capable first.
+     */
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun createRecogniser(context: Context): SpeechRecognizer {
+        val preferred = ComponentName(SYSTEM_INTELLIGENCE_PACKAGE, SYSTEM_INTELLIGENCE_SERVICE)
+        if (isUsable(context, preferred)) {
+            val explicit = runCatching { SpeechRecognizer.createSpeechRecognizer(context, preferred) }.getOrNull()
+            if (explicit != null) {
+                Log.i(TAG, "using $SYSTEM_INTELLIGENCE_PACKAGE")
+                return explicit
+            }
+        }
+        Log.i(TAG, "using the framework's default on-device recogniser")
+        return SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
+    }
+
+    /** Installed, enabled, and actually declaring a RecognitionService. */
+    private fun isUsable(
+        context: Context,
+        component: ComponentName,
+    ): Boolean =
+        runCatching {
+            context.packageManager
+                .queryIntentServices(Intent(RECOGNITION_SERVICE_ACTION), 0)
+                .any { it.serviceInfo?.packageName == component.packageName }
+        }.getOrDefault(false)
+
+    /**
      * One recogniser session's worth of pipe.
-     *
-     * The read end is handed over and deliberately kept open on our side until
-     * teardown: closing it during the binder handover is a race, and holding it
-     * does not stop the recogniser seeing EOF, which the write end signals.
      */
     private class Pipe(
         val read: ParcelFileDescriptor,
@@ -345,7 +469,6 @@ class PipedAsrTranscriptSource(
             try {
                 out.write(bytes)
             } catch (e: IOException) {
-                // The recogniser closed its end. Normal at every cycle boundary.
                 Log.d(TAG, "pipe closed: ${e.message}")
             }
         }
@@ -366,18 +489,45 @@ class PipedAsrTranscriptSource(
     companion object {
         private const val TAG = "KavachAsr"
         private const val ERROR_BACKOFF_MS = 400L
+        private const val BUSY_BACKOFF_MS = 1_000L
+        private const val LANGUAGE_BACKOFF_MS = 1_200L
+        private const val MAX_LANGUAGE_FAILURES = 3
+        private const val MAX_PIPE_REJECTIONS = 2
+
+        private const val RECOGNITION_SERVICE_ACTION = "android.speech.RecognitionService"
+        private const val SYSTEM_INTELLIGENCE_PACKAGE = "com.google.android.as"
+        private const val SYSTEM_INTELLIGENCE_SERVICE =
+            "com.google.android.apps.miphone.aiai.app.AiAiSpeechRecognitionService"
+
+        const val PIPE_UNSUPPORTED_MESSAGE =
+            "This device will not let Kavach feed its own microphone to the recogniser, " +
+                "so listening during a call is unavailable."
         private const val WINDOW_MS = 8_000L
 
-        /** SpeechRecognizer error codes, absent from the constants available at minSdk 30. */
+        /** SpeechRecognizer error codes (API 31+ constants). */
         private const val ERROR_LANGUAGE_NOT_SUPPORTED = 12
         private const val ERROR_LANGUAGE_UNAVAILABLE = 13
 
         /**
-         * English first because the lexicon is 105 Latin markers to 16 Devanagari,
-         * including every negative guard. Hindi is what makes the Hindi half of a
-         * code-switched sentence legible at all.
+         * English and Hindi in rotation, with the active system locale and fallback
+         * so single-language devices without downloaded Indic offline packs do not crash.
          */
-        val DEFAULT_LANGUAGES = listOf("en-IN", "hi-IN")
+        fun defaultLanguages(): List<String> {
+            val system = Locale.getDefault().toLanguageTag()
+            return listOf("en-IN", "hi-IN", system, "en-US")
+                .filter { it.isNotBlank() }
+                .distinct()
+        }
+
+        val DEFAULT_LANGUAGES = defaultLanguages()
+
+        const val FALLBACK_LANGUAGE = "en-IN"
+
+        const val NO_MIC_PERMISSION_MESSAGE = "Microphone permission was withdrawn."
+
+        const val NO_LANGUAGE_MESSAGE =
+            "Offline speech models are downloading. Keep internet active for a moment " +
+                "while Google Speech Services installs Hindi and English models."
     }
 }
 

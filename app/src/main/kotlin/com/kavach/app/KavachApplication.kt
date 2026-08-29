@@ -38,6 +38,12 @@ class KavachApplication : Application() {
         ModelRepository(this).also { it.refresh() }
     }
 
+    val speechModels: com.kavach.app.inference.SpeechModelManager by lazy {
+        com.kavach.app.inference
+            .SpeechModelManager(this)
+            .also { it.checkSupport() }
+    }
+
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     /**

@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import com.kavach.app.capture.CaptureState
 import com.kavach.app.capture.MicOwner
 import com.kavach.app.capture.audioModeName
+import com.kavach.app.inference.SpeechModelStatus
 import com.kavach.app.setup.Readiness
 import com.kavach.app.setup.Rung
 
@@ -45,8 +46,10 @@ fun ReadinessScreen(
     rungs: List<Rung>,
     tier: String,
     capture: CaptureState,
+    speechStatus: SpeechModelStatus = SpeechModelStatus(),
     showRestrictedHint: Boolean,
     onGrant: (Rung) -> Unit,
+    onDownloadSpeechModels: () -> Unit = {},
     onContinue: () -> Unit,
 ) {
     Column(
@@ -103,6 +106,11 @@ fun ReadinessScreen(
             }
         }
 
+        SpeechModelsSection(
+            speechStatus = speechStatus,
+            onDownloadModels = onDownloadSpeechModels,
+        )
+
         CaptureReadout(capture)
 
         Box(
@@ -116,6 +124,71 @@ fun ReadinessScreen(
             contentAlignment = Alignment.Center,
         ) {
             Text("Continue", color = KavachTokens.Paper, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+@Composable
+private fun SpeechModelsSection(
+    speechStatus: SpeechModelStatus,
+    onDownloadModels: () -> Unit,
+) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(top = 20.dp)
+            .clip(RoundedCornerShape(KavachTokens.RadiusCard))
+            .border(1.dp, KavachTokens.Ink.copy(alpha = 0.12f), RoundedCornerShape(KavachTokens.RadiusCard))
+            .padding(18.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(
+            "OFFLINE SPEECH RECOGNITION",
+            color = KavachTokens.InkMuted,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = 1.sp,
+        )
+
+        val hindiStatus =
+            when {
+                speechStatus.hasHindi -> "Ready (Installed)"
+                speechStatus.isDownloading -> "Downloading..."
+                else -> "Available on-demand"
+            }
+        val englishStatus =
+            when {
+                speechStatus.hasIndianEnglish -> "Ready (Installed)"
+                speechStatus.isDownloading -> "Downloading..."
+                else -> "Available on-demand"
+            }
+
+        ReadoutLine("Hindi (hi-IN)", hindiStatus)
+        ReadoutLine("English India (en-IN)", englishStatus)
+
+        if (!speechStatus.hasHindi || !speechStatus.hasIndianEnglish) {
+            val hintText =
+                if (speechStatus.isDownloading) {
+                    "Downloading speech models in background..."
+                } else {
+                    "Download Hindi & English speech models for 100% offline detection"
+                }
+            Text(
+                hintText,
+                color = KavachTokens.InkSoft,
+                fontSize = 13.sp,
+                lineHeight = 18.sp,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            if (!speechStatus.isDownloading) {
+                Text(
+                    "Download offline models",
+                    color = KavachTokens.Cyan,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 6.dp).clickable { onDownloadModels() },
+                )
+            }
         }
     }
 }
@@ -178,7 +251,7 @@ private fun CaptureReadout(capture: CaptureState) {
     Column(
         Modifier
             .fillMaxWidth()
-            .padding(top = 26.dp)
+            .padding(top = 20.dp)
             .clip(RoundedCornerShape(KavachTokens.RadiusCard))
             .border(1.dp, KavachTokens.Ink.copy(alpha = 0.12f), RoundedCornerShape(KavachTokens.RadiusCard))
             .padding(18.dp),

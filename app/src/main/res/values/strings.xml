@@ -125,4 +125,6 @@
     <string name="action_dial_1930">Call 1930</string>
     <string name="setup_title">What Kavach can do right now</string>
     <string name="setup_restricted_hint">Android blocks this toggle for apps installed outside an app store. Open App info, tap the three dots at the top right, and choose “Allow restricted settings”, then come back.</string>
+    <string name="state_noticed_title">Something came up</string>
+    <string name="state_noticed_body">Kavach has heard %1$d kind of scam tactic. A warning needs %2$d different kinds, so it is watching for more.</string>
 </resources>

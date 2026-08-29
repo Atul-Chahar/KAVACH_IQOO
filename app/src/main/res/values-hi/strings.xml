@@ -114,4 +114,6 @@
     <string name="action_dial_1930">1930 पर कॉल करें</string>
     <string name="setup_title">कवच अभी क्या कर सकता है</string>
     <string name="setup_restricted_hint">ऐप स्टोर के बाहर से इंस्टॉल किए गए ऐप्स के लिए एंड्रॉइड यह विकल्प रोक देता है। App info खोलें, ऊपर दाईं ओर तीन बिंदुओं पर टैप करें, “Allow restricted settings” चुनें, फिर वापस आएँ।</string>
+    <string name="state_noticed_title">कुछ सामने आया है</string>
+    <string name="state_noticed_body">कवच ने %1$d तरह की स्कैम तरकीब सुनी है। चेतावनी के लिए %2$d अलग तरह की चाहिए, इसलिए वह और देख रहा है।</string>
 </resources>

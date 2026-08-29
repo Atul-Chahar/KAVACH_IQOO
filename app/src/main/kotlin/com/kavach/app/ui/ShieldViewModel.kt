@@ -37,6 +37,16 @@ class ShieldViewModel(
 
     val modelState: StateFlow<ModelState> = app.models.state
 
+    val speechModelStatus: StateFlow<com.kavach.app.inference.SpeechModelStatus> = app.speechModels.status
+
+    fun refreshSpeechModels() {
+        app.speechModels.checkSupport()
+    }
+
+    fun downloadSpeechModels() {
+        app.speechModels.triggerDownload()
+    }
+
     fun freeSpaceBytes(): Long = app.models.usableSpaceBytes()
 
     fun refreshModel() {

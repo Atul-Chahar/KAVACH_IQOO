@@ -216,6 +216,7 @@ private fun SetupGate(
 ): Boolean {
     val context = LocalContext.current
     val capture by app.diagnostics.state.collectAsStateWithLifecycle()
+    val speechStatus by app.speechModels.status.collectAsStateWithLifecycle()
 
     var rungs by remember { mutableStateOf(Readiness.rungs(context)) }
     var tier by remember { mutableStateOf(Readiness.tier(context)) }
@@ -225,6 +226,7 @@ private fun SetupGate(
         rungs = Readiness.rungs(context)
         tier = Readiness.tier(context)
         restrictedHint = Readiness.needsRestrictedSettingsHint(context)
+        app.speechModels.checkSupport()
         onPauseOrDispose { }
     }
 
@@ -234,8 +236,10 @@ private fun SetupGate(
         rungs = rungs,
         tier = tier,
         capture = capture,
+        speechStatus = speechStatus,
         showRestrictedHint = restrictedHint,
         onGrant = { rung -> grant(context, rung) },
+        onDownloadSpeechModels = { app.speechModels.triggerDownload() },
         onContinue = onContinue,
     )
     return true

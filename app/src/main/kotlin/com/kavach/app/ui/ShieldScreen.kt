@@ -404,6 +404,36 @@ private fun SessionHeader(
 }
 
 /**
+ * The headline.
+ *
+ * "Nothing unusual so far" while a tactic has in fact been heard reads as "I am
+ * not listening" — the one thing this screen must never imply. Below the warning
+ * threshold Kavach names what it heard instead of denying it.
+ */
+@Composable
+private fun headline(state: ShieldUiState): String =
+    when {
+        state.band == RiskBand.WATCHING && state.familiesSeen > 0 ->
+            stringResource(R.string.state_noticed_title)
+        state.band == RiskBand.WATCHING -> stringResource(R.string.state_watching_title)
+        state.band == RiskBand.CAUTION -> stringResource(R.string.state_caution_title)
+        else -> stringResource(R.string.state_high_risk_title)
+    }
+
+/** The sentence under it, which is where the family-diversity rule is explained. */
+@Composable
+private fun explanation(state: ShieldUiState): String =
+    when {
+        state.band == RiskBand.WATCHING && state.familiesSeen > 0 ->
+            stringResource(R.string.state_noticed_body, state.familiesSeen, state.familiesForWarning)
+        state.band == RiskBand.WATCHING ->
+            stringResource(R.string.state_watching_body, state.familiesTotal)
+        state.band == RiskBand.CAUTION ->
+            stringResource(R.string.state_caution_body, state.familiesSeen, state.familiesTotal)
+        else -> stringResource(R.string.state_high_risk_body)
+    }
+
+/**
  * The headline and its explanation.
  *
  * Marked as an assertive live region so a TalkBack user is told the state
@@ -434,11 +464,7 @@ private fun Announcement(
         },
     ) {
         Text(
-            when (state.band) {
-                RiskBand.WATCHING -> stringResource(R.string.state_watching_title)
-                RiskBand.CAUTION -> stringResource(R.string.state_caution_title)
-                RiskBand.HIGH_RISK -> stringResource(R.string.state_high_risk_title)
-            },
+            headline(state),
             style =
                 if (state.band == RiskBand.HIGH_RISK) {
                     MaterialTheme.typography.headlineLarge
@@ -449,12 +475,7 @@ private fun Announcement(
         )
         Gap(if (state.band == RiskBand.HIGH_RISK) 8.dp else 12.dp)
         Text(
-            when (state.band) {
-                RiskBand.WATCHING -> stringResource(R.string.state_watching_body, state.familiesTotal)
-                RiskBand.CAUTION ->
-                    stringResource(R.string.state_caution_body, state.familiesSeen, state.familiesTotal)
-                RiskBand.HIGH_RISK -> stringResource(R.string.state_high_risk_body)
-            },
+            explanation(state),
             style =
                 if (state.band == RiskBand.HIGH_RISK) {
                     MaterialTheme.typography.bodyMedium

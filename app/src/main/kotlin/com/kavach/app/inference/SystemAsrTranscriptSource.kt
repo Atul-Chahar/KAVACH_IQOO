@@ -81,6 +81,15 @@ class SystemAsrTranscriptSource(
                             restart()
                             return
                         }
+                        if (error == ERROR_LANGUAGE_UNAVAILABLE || error == ERROR_LANGUAGE_NOT_SUPPORTED) {
+                            Log.w(TAG, "language $languageTag is unavailable on device")
+                            close(IllegalStateException("Offline speech recognition for $languageTag is unavailable."))
+                            return
+                        }
+                        if (error == SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS) {
+                            close(IllegalStateException("Microphone permission was denied."))
+                            return
+                        }
                         Log.w(TAG, "recogniser error $error")
                         restart(delayMs = ERROR_BACKOFF_MS)
                     }
@@ -162,6 +171,9 @@ class SystemAsrTranscriptSource(
         private const val RESTART_DELAY_MS = 150L
         private const val ERROR_BACKOFF_MS = 1_000L
         private const val WINDOW_MS = 8_000L
+
+        private const val ERROR_LANGUAGE_NOT_SUPPORTED = 12
+        private const val ERROR_LANGUAGE_UNAVAILABLE = 13
 
         /**
          * en-IN emits Latin script, which is what the lexicon's romanised
