@@ -116,4 +116,12 @@
     <string name="setup_restricted_hint">ऐप स्टोर के बाहर से इंस्टॉल किए गए ऐप्स के लिए एंड्रॉइड यह विकल्प रोक देता है। App info खोलें, ऊपर दाईं ओर तीन बिंदुओं पर टैप करें, “Allow restricted settings” चुनें, फिर वापस आएँ।</string>
     <string name="state_noticed_title">कुछ सामने आया है</string>
     <string name="state_noticed_body">कवच ने %1$d तरह की स्कैम तरकीब सुनी है। चेतावनी के लिए %2$d अलग तरह की चाहिए, इसलिए वह और देख रहा है।</string>
+    <string name="verdict_safe_title">कॉल सुरक्षित थी</string>
+    <string name="verdict_safe_body">उस कॉल में कवच को कोई स्कैम पैटर्न नहीं मिला (स्कोर %1$d/100)।</string>
+    <string name="verdict_caution_title">सावधान रहें — कुछ सामने आया</string>
+    <string name="verdict_caution_body">उस कॉल में कुछ स्कैम-संकेत दिखे (स्कोर %1$d/100)। कुछ करने की ज़रूरत नहीं; बस सतर्क रहें।</string>
+    <string name="verdict_high_risk_title">वह कॉल स्कैम स्क्रिप्ट जैसी थी</string>
+    <string name="verdict_high_risk_body">वह कॉल ज्ञात स्कैम पैटर्न से मेल खाती है (स्कोर %1$d/100)। अगर ओटीपी, पिन या पैसे दिए हैं, तो 1930 पर तुरंत शिकायत करें।</string>
+    <string name="raise_blocked_title">कवच उस कॉल को नहीं देख सका</string>
+    <string name="raise_blocked_body">“ऐप्स के ऊपर दिखाएं” अनुमति बंद है, इसलिए आने वाली कॉल पर शील्ड नहीं दिख सकी। टैप करके अनुमति दें — अगली कॉल अपने आप देखी जाएगी।</string>
 </resources>

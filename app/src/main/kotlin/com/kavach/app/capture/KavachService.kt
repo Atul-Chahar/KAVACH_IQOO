@@ -2,7 +2,6 @@ package com.kavach.app.capture
 
 import android.Manifest
 import android.app.Notification
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
@@ -23,6 +22,7 @@ import com.kavach.app.KavachApplication
 import com.kavach.app.MainActivity
 import com.kavach.app.R
 import com.kavach.app.monitor.MonitorMode
+import com.kavach.app.monitor.ShieldUiState
 import com.kavach.app.ui.ShieldOverlayActivity
 import com.kavach.domain.RiskBand
 import kotlinx.coroutines.CoroutineScope
@@ -137,11 +137,65 @@ class KavachService : Service() {
     }
 
     private fun stopMonitoring() {
+        // Capture the final verdict before teardown: [ShieldController.stop]
+        // flips monitoring to false and clears the live assessment we report on.
+        val finalState = app.controller.state.value
         started.set(false)
         app.controller.stop()
         scope.cancel()
+        postCallVerdict(finalState)
         ServiceCompat.stopForegroundAndRemoveNotification(this)
         stopSelf()
+    }
+
+    /**
+     * The end-of-call report card. While the call runs, the verdict is a
+     * transient notification the user can miss — they are busy talking. Posting
+     * it again after hangup, on the loud channel, is the answer to the question
+     * the user actually has: "was that call safe?" It names the band, the top
+     * tactic when there is one, and never reuses the listening notification's
+     * id, which is about to be removed.
+     */
+    private fun postCallVerdict(state: ShieldUiState) {
+        val band = state.band
+        val manager = getSystemService(NotificationManager::class.java) ?: return
+
+        val title =
+            when (band) {
+                RiskBand.HIGH_RISK -> getString(R.string.verdict_high_risk_title)
+                RiskBand.CAUTION -> getString(R.string.verdict_caution_title)
+                RiskBand.WATCHING -> getString(R.string.verdict_safe_title)
+            }
+        val text =
+            when (band) {
+                RiskBand.HIGH_RISK -> getString(R.string.verdict_high_risk_body, state.score)
+                RiskBand.CAUTION ->
+                    state.tactics.firstOrNull()
+                        ?: getString(R.string.verdict_caution_body, state.score)
+                RiskBand.WATCHING -> getString(R.string.verdict_safe_body, state.score)
+            }
+
+        val open =
+            PendingIntent.getActivity(
+                this,
+                REQUEST_OPEN,
+                Intent(this, MainActivity::class.java),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+            )
+        val notification =
+            NotificationCompat
+                .Builder(this, KavachNotifications.CHANNEL_ALERT)
+                .setSmallIcon(R.drawable.ic_shield)
+                .setColor(bandColor(band))
+                .setContentTitle(title)
+                .setContentText(text)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+                .setContentIntent(open)
+                .setAutoCancel(true)
+                .setCategory(NotificationCompat.CATEGORY_CALL)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .build()
+        manager.notify(KavachNotifications.VERDICT_ID, notification)
     }
 
     override fun onDestroy() {
@@ -152,9 +206,13 @@ class KavachService : Service() {
 
     private fun startAsForeground(notification: Notification) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
+            startForeground(
+                KavachNotifications.ONGOING_ID,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE,
+            )
         } else {
-            startForeground(NOTIFICATION_ID, notification)
+            startForeground(KavachNotifications.ONGOING_ID, notification)
         }
     }
 
@@ -169,7 +227,7 @@ class KavachService : Service() {
                 RiskBand.HIGH_RISK -> getString(R.string.state_high_risk_title)
             }
         val manager = getSystemService(NotificationManager::class.java)
-        manager?.notify(NOTIFICATION_ID, notification(band, text))
+        manager?.notify(KavachNotifications.ONGOING_ID, notification(band, text))
     }
 
     /**
@@ -188,7 +246,7 @@ class KavachService : Service() {
         val alerting = band == RiskBand.HIGH_RISK
         val intents = buildPendingIntents()
         val accentColor = bandColor(band)
-        val channelId = if (alerting) CHANNEL_ALERT else CHANNEL_STATUS
+        val channelId = if (alerting) KavachNotifications.CHANNEL_ALERT else KavachNotifications.CHANNEL_STATUS
 
         return NotificationCompat
             .Builder(this, channelId)
@@ -291,38 +349,8 @@ class KavachService : Service() {
         }
 
     private fun createChannels() {
-        val manager = getSystemService(NotificationManager::class.java) ?: return
-
-        // Channel settings are immutable once created, so the old single channel
-        // is deleted rather than edited: without this an upgrade would silently
-        // keep IMPORTANCE_LOW and the warning would stay mute on the demo device.
-        runCatching { manager.deleteNotificationChannel(LEGACY_CHANNEL) }
-
-        manager.createNotificationChannel(
-            NotificationChannel(
-                CHANNEL_STATUS,
-                getString(R.string.notification_channel_name),
-                NotificationManager.IMPORTANCE_LOW,
-            ).apply {
-                description = getString(R.string.notification_channel_description)
-                setShowBadge(false)
-                setSound(null, null)
-            },
-        )
-
-        manager.createNotificationChannel(
-            NotificationChannel(
-                CHANNEL_ALERT,
-                getString(R.string.notification_channel_alert_name),
-                NotificationManager.IMPORTANCE_HIGH,
-            ).apply {
-                description = getString(R.string.notification_channel_alert_description)
-                enableVibration(true)
-                vibrationPattern = HIGH_RISK_PATTERN
-                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-                setBypassDnd(true)
-            },
-        )
+        runCatching { getSystemService(NotificationManager::class.java)?.deleteNotificationChannel(LEGACY_CHANNEL) }
+        KavachNotifications.ensureChannels(this)
     }
 
     /** Minimal shim so the deprecated stopForeground overload is isolated in one place. */
@@ -340,9 +368,6 @@ class KavachService : Service() {
     companion object {
         private const val TAG = "KavachService"
         private const val LEGACY_CHANNEL = "kavach_monitoring"
-        private const val CHANNEL_STATUS = "kavach_status_v2"
-        private const val CHANNEL_ALERT = "kavach_alerts_v2"
-        private const val NOTIFICATION_ID = 1001
         private const val NOTIFICATION_SUBTEXT = "KAVACH LIVE"
         private const val COLOR_WATCHING = 0xFF22C55E.toInt()
         private const val COLOR_CAUTION = 0xFFF59E0B.toInt()
@@ -358,8 +383,8 @@ class KavachService : Service() {
         const val ACTION_STOP = "com.kavach.app.STOP"
 
         /** One gentle buzz for CAUTION, two for HIGH_RISK. Never a siren. */
-        private val CAUTION_PATTERN = longArrayOf(0, 180)
-        private val HIGH_RISK_PATTERN = longArrayOf(0, 220, 160, 220)
+        val CAUTION_PATTERN = longArrayOf(0, 180)
+        val HIGH_RISK_PATTERN = longArrayOf(0, 220, 160, 220)
         private const val NO_REPEAT = -1
 
         fun start(context: Context) {
