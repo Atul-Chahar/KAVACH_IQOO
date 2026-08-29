@@ -7,10 +7,12 @@ import com.kavach.app.capture.KavachNotifications
 import com.kavach.app.inference.GemmaLlmAdjudicator
 import com.kavach.app.inference.PipedAsrTranscriptSource
 import com.kavach.app.inference.SystemAsrTranscriptSource
+import com.kavach.app.message.MessageGuardStore
 import com.kavach.app.model.ModelRepository
 import com.kavach.app.monitor.ShieldController
 import com.kavach.demo.FixtureTranscriptSource
 import com.kavach.domain.ModelCatalog
+import com.kavach.domain.SmsMessageAnalyzer
 import com.kavach.domain.TacticLexicon
 import com.kavach.domain.TranscriptSource
 import kotlinx.coroutines.CoroutineScope
@@ -59,6 +61,10 @@ class KavachApplication : Application() {
 
     val controller: ShieldController by lazy {
         ShieldController(lexicon, hindi = Locale.getDefault().language == "hi")
+    }
+
+    val messageGuard: MessageGuardStore by lazy {
+        MessageGuardStore(SmsMessageAnalyzer(lexicon))
     }
 
     private var activeAdjudicator: GemmaLlmAdjudicator? = null

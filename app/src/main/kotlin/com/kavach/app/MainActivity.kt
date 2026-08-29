@@ -23,18 +23,23 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.kavach.app.message.MessageDetection
 import com.kavach.app.setup.Capability
+import com.kavach.app.setup.MessageGuardAccess
 import com.kavach.app.setup.Readiness
 import com.kavach.app.setup.Rung
 import com.kavach.app.ui.FixturePickerDialog
 import com.kavach.app.ui.KavachTheme
+import com.kavach.app.ui.MessageGuardScreen
 import com.kavach.app.ui.ModelSetupScreen
 import com.kavach.app.ui.ReadinessScreen
 import com.kavach.app.ui.ReportScreen
 import com.kavach.app.ui.ShieldScreen
 import com.kavach.app.ui.ShieldViewModel
+import com.kavach.app.ui.SmsAnalysisScreen
 import com.kavach.domain.Incident
 import com.kavach.domain.ModelState
+import com.kavach.domain.SmsMessageAnalyzer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
@@ -44,36 +49,133 @@ import java.util.Locale
 /** Single activity, unidirectional data flow, one StateFlow (CLAUDE.md Stack). */
 class MainActivity : ComponentActivity() {
     private val viewModel: ShieldViewModel by viewModels()
+    private var sharedMessage by mutableStateOf<String?>(null)
+    private var messageGuardRequested by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        sharedMessage = intent.sharedPlainText()
+        messageGuardRequested = intent.action == ACTION_MESSAGE_GUARD
         setContent {
             KavachTheme {
-                KavachApp(viewModel)
+                KavachApp(
+                    viewModel = viewModel,
+                    sharedMessage = sharedMessage,
+                    onCloseMessage = { sharedMessage = null },
+                    showMessageGuard = messageGuardRequested,
+                    onMessageGuardChanged = { messageGuardRequested = it },
+                )
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        sharedMessage = intent.sharedPlainText()
+        if (intent.action == ACTION_MESSAGE_GUARD) messageGuardRequested = true
+    }
+
+    companion object {
+        const val ACTION_MESSAGE_GUARD = "com.kavach.app.action.MESSAGE_GUARD"
     }
 }
 
 @Composable
-private fun KavachApp(viewModel: ShieldViewModel) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+private fun KavachApp(
+    viewModel: ShieldViewModel,
+    sharedMessage: String?,
+    onCloseMessage: () -> Unit,
+    showMessageGuard: Boolean,
+    onMessageGuardChanged: (Boolean) -> Unit,
+) {
     val context = LocalContext.current
     val app = context.applicationContext as KavachApplication
 
-    var showFixtures by remember { mutableStateOf(false) }
-    var report by remember { mutableStateOf<String?>(null) }
-    var showModelSetup by remember { mutableStateOf(false) }
-
-    val modelState by viewModel.modelState.collectAsStateWithLifecycle()
+    var selectedMessageResult by remember { mutableStateOf<SmsMessageAnalyzer.Result?>(null) }
     var setupAcknowledged by rememberSaveable { mutableStateOf(false) }
 
-    val capabilities = rememberCapabilities(context)
+    // Route precedence, outermost first: an explicit share, then a tapped
+    // detection, then the Message Guard center, then setup, then home.
+    // Each route renders itself and returns true when it took the screen.
+    if (SmsShareRoute(sharedMessage, app, onCloseMessage)) return
+    if (MessageResultRoute(selectedMessageResult) { selectedMessageResult = null }) return
+    if (
+        MessageGuardRoute(
+            app = app,
+            context = context,
+            active = showMessageGuard,
+            onOpenDetection = { selectedMessageResult = it.result },
+            onClose = { onMessageGuardChanged(false) },
+        )
+    ) {
+        return
+    }
 
     // Setup is shown until the device can actually do the thing the app claims,
     // or until the user says they have seen it. Never as a carousel, never twice.
     if (!setupAcknowledged && SetupGate(app) { setupAcknowledged = true }) return
+
+    HomeRoute(
+        viewModel = viewModel,
+        onOpenMessageGuard = { onMessageGuardChanged(true) },
+    )
+}
+
+/** A tapped detection's full analysis, or nothing when none is selected. */
+@Composable
+private fun MessageResultRoute(
+    result: SmsMessageAnalyzer.Result?,
+    onClose: () -> Unit,
+): Boolean {
+    if (result == null) return false
+    val context = LocalContext.current
+    SmsAnalysisScreen(result = result, onBack = onClose, onCall1930 = { dial1930(context) })
+    return true
+}
+
+/**
+ * The Message Guard center. Renders only while [active]; re-reads notification
+ * access on every resume so returning from Settings updates the card.
+ */
+@Composable
+private fun MessageGuardRoute(
+    app: KavachApplication,
+    context: Context,
+    active: Boolean,
+    onOpenDetection: (MessageDetection) -> Unit,
+    onClose: () -> Unit,
+): Boolean {
+    if (!active) return false
+    val detections by app.messageGuard.detections.collectAsStateWithLifecycle()
+    MessageGuardScreen(
+        enabled = rememberMessageNotificationAccess(context),
+        detections = detections,
+        onEnable = { context.startActivity(MessageGuardAccess.settingsIntent(context)) },
+        onOpenDetection = onOpenDetection,
+        onBack = onClose,
+    )
+    return true
+}
+
+/**
+ * Home plus its overlay screens (model setup, report, demo fixtures). Owns the
+ * overlay state and the launchers so [KavachApp] stays a route dispatcher.
+ */
+@Composable
+private fun HomeRoute(
+    viewModel: ShieldViewModel,
+    onOpenMessageGuard: () -> Unit,
+) {
+    val context = LocalContext.current
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val modelState by viewModel.modelState.collectAsStateWithLifecycle()
+    val capabilities = rememberCapabilities(context)
+
+    var showFixtures by remember { mutableStateOf(false) }
+    var report by remember { mutableStateOf<String?>(null) }
+    var showModelSetup by remember { mutableStateOf(false) }
 
     // The system file picker: the user grants access to exactly one file, so no
     // storage permission is needed and Kavach can read nothing else.
@@ -120,6 +222,7 @@ private fun KavachApp(viewModel: ShieldViewModel) {
                 startLive = { permissionLauncher.launch(requiredPermissions()) },
                 startDemo = { showFixtures = true },
                 openReport = { report = viewModel.report() },
+                openMessageGuard = onOpenMessageGuard,
                 openModelSetup = {
                     viewModel.refreshModel()
                     showModelSetup = true
@@ -132,11 +235,25 @@ private fun KavachApp(viewModel: ShieldViewModel) {
     }
 }
 
+@Composable
+private fun SmsShareRoute(
+    message: String?,
+    app: KavachApplication,
+    onClose: () -> Unit,
+): Boolean {
+    if (message == null) return false
+    val context = LocalContext.current
+    val result = remember(message, app.lexicon) { SmsMessageAnalyzer(app.lexicon).analyze(message) }
+    SmsAnalysisScreen(result = result, onBack = onClose, onCall1930 = { dial1930(context) })
+    return true
+}
+
 /** The four things the home screen can navigate to, kept together so the route reads as one. */
 private data class HomeActions(
     val startLive: () -> Unit,
     val startDemo: () -> Unit,
     val openReport: () -> Unit,
+    val openMessageGuard: () -> Unit,
     val openModelSetup: () -> Unit,
 )
 
@@ -158,6 +275,7 @@ private fun ShieldRoute(
         onStartDemo = actions.startDemo,
         onStop = viewModel::stop,
         onOpenReport = actions.openReport,
+        onOpenMessageGuard = actions.openMessageGuard,
         onOpenModelSetup = actions.openModelSetup,
         onToggleTranscript = viewModel::setShowTranscript,
         onDismissAlert = viewModel::dismissAlert,
@@ -183,6 +301,16 @@ private fun rememberCapabilities(context: Context): List<Capability> {
         onPauseOrDispose { }
     }
     return capabilities
+}
+
+@Composable
+private fun rememberMessageNotificationAccess(context: Context): Boolean {
+    var enabled by remember { mutableStateOf(false) }
+    LifecycleResumeEffect(Unit) {
+        enabled = MessageGuardAccess.isEnabled(context)
+        onPauseOrDispose { }
+    }
+    return enabled
 }
 
 /** DemoMode's fixture chooser. Replays a scripted transcript through the live pipeline. */
@@ -351,3 +479,12 @@ private fun requiredPermissions(): Array<String> =
             add(Manifest.permission.POST_NOTIFICATIONS)
         }
     }.toTypedArray()
+
+private fun Intent.sharedPlainText(): String? =
+    takeIf { action == Intent.ACTION_SEND && type == "text/plain" }
+        ?.getCharSequenceExtra(Intent.EXTRA_TEXT)
+        ?.toString()
+        ?.take(MAX_SHARED_MESSAGE_LENGTH)
+        ?.takeIf { it.isNotBlank() }
+
+private const val MAX_SHARED_MESSAGE_LENGTH = 10_000
