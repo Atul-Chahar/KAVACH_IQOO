@@ -75,7 +75,19 @@ class KavachService : Service() {
         startId: Int,
     ): Int {
         when (intent?.action) {
-            ACTION_STOP -> stopMonitoring()
+            ACTION_STOP -> {
+                // STOP arrives via startForegroundService (see [Companion.stop]),
+                // which requires a startForeground() call within 5 s even when the
+                // intent is only a stop. If we were never foreground, promote with
+                // a quiet notification and immediately drop it — without this the
+                // first stop after a process death crashes with
+                // ForegroundServiceDidNotStartInTimeException.
+                if (!started.get()) {
+                    val quiet = notification(RiskBand.WATCHING, getString(R.string.notification_watching))
+                    runCatching { startAsForeground(quiet) }
+                }
+                stopMonitoring()
+            }
             ACTION_START -> start()
             else -> {
                 Log.w(TAG, "refusing to start: no explicit action (was this a sticky restart?)")
@@ -139,10 +151,14 @@ class KavachService : Service() {
     }
 
     private fun stopMonitoring() {
+        // Idempotent: STOP can arrive twice in a row (overlay's onDestroy fires
+        // KavachService.stop after the state collector already tore the session
+        // down), and the second run would cancel an already-cancelled scope and
+        // post a duplicate verdict notification.
+        if (!started.compareAndSet(true, false)) return
         // Capture the final verdict before teardown: [ShieldController.stop]
         // flips monitoring to false and clears the live assessment we report on.
         val finalState = app.controller.state.value
-        started.set(false)
         app.controller.stop()
         scope.cancel()
         postCallVerdict(finalState)
@@ -159,6 +175,12 @@ class KavachService : Service() {
      * id, which is about to be removed.
      */
     private fun postCallVerdict(state: ShieldUiState) {
+        // A session that never heard anything (started then immediately stopped,
+        // or capture failed before the first window) has no verdict to report —
+        // "Safe (score 0)" would be a claim about a call we never listened to.
+        val heardNothing =
+            state.transcriptPreview.isBlank() && state.familiesSeen == 0 && state.score == 0
+        if (heardNothing) return
         val band = state.band
         val manager = getSystemService(NotificationManager::class.java) ?: return
 
@@ -228,6 +250,15 @@ class KavachService : Service() {
         }
     }
 
+    /**
+     * The session's PendingIntents, built once. [updateNotification] runs on
+     * every band change — and `buildPendingIntents` allocates four
+     * PendingIntents plus an Intent each time. FLAG_UPDATE_CURRENT makes the
+     * rebuilt ones equivalent to the originals, so caching loses nothing and
+     * stops the per-tick churn on the binder.
+     */
+    private val cachedIntents: NotificationIntents by lazy { buildPendingIntents() }
+
     private fun updateNotification(
         band: RiskBand,
         tactics: List<String>,
@@ -256,7 +287,7 @@ class KavachService : Service() {
         text: String,
     ): Notification {
         val alerting = band == RiskBand.HIGH_RISK
-        val intents = buildPendingIntents()
+        val intents = cachedIntents
         val accentColor = bandColor(band)
         val channelId = if (alerting) KavachNotifications.CHANNEL_ALERT else KavachNotifications.CHANNEL_STATUS
 
@@ -407,8 +438,21 @@ class KavachService : Service() {
             )
         }
 
+        /**
+         * Stop from anywhere, including the background (overlay dismiss, lock
+         * screen). A plain `startService` from the background throws
+         * IllegalStateException on Android 12+ while the app has no visible
+         * activity — exactly the moment the call ends and the shield tears
+         * down. `startForegroundService` is always legal; the service's
+         * onStartCommand promotes to foreground first thing, so the STOP path
+         * never lingers as a phantom foreground service (stopMonitoring runs
+         * stopForeground immediately).
+         */
         fun stop(context: Context) {
-            context.startService(Intent(context, KavachService::class.java).setAction(ACTION_STOP))
+            ContextCompat.startForegroundService(
+                context,
+                Intent(context, KavachService::class.java).setAction(ACTION_STOP),
+            )
         }
     }
 }

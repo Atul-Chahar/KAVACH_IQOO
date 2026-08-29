@@ -41,18 +41,25 @@ class GemmaLlmAdjudicator(
     private var engine: Engine? = null
     private var closed = false
 
+    /** Set the first time GPU fails; every later init goes straight to CPU. */
+    private var gpuDisabled = false
+
     private val modelPath = modelFile.absolutePath
+
+    /** One window's answer, and whether it took a repair round to get there. */
+    private data class Answer(
+        val text: String,
+        val repaired: Boolean,
+    )
 
     /**
      * One window, judged on its own.
      *
-     * The conversation is created and closed per call, and only the [Engine] —
-     * the expensive part — is kept. A single long-lived conversation was reused
-     * for the whole session, so every excerpt and every repair prompt stayed in
-     * its history: context grew without bound across a call, inference slowed
-     * until it hit the timeout on every window, and the model was answering
-     * about a transcript it had seen twenty stale copies of. Each window is an
-     * independent question and is now asked as one.
+     * Two failure modes are handled here and they are not the same. A GPU that
+     * dies mid-inference is recoverable — the runtime is rebuilt on the CPU and
+     * the window is asked again — because some devices claim OpenCL support and
+     * only admit otherwise at send time (LiteRT-LM #1860). Everything else
+     * degrades to null and the user keeps seeing Tier 1.
      */
     override suspend fun adjudicate(transcript: String): String? =
         mutex.withLock {
@@ -60,30 +67,20 @@ class GemmaLlmAdjudicator(
             // a close racing an in-flight request can no longer free native
             // resources while this body is inside them (the use-after-free case).
             if (closed || transcript.isBlank()) return@withLock null
-            val activeEngine = engine ?: warmUp() ?: return@withLock null
-            val conversation =
-                runCatching {
-                    activeEngine.createConversation(
-                        ConversationConfig(systemInstruction = Contents.of(SYSTEM_INSTRUCTION)),
-                    )
-                }.onFailure { Log.w(TAG, "could not open a conversation", it) }
-                    .getOrNull() ?: return@withLock null
-            var repaired = false
             val started = SystemClock.elapsedRealtime()
-            try {
-                runCatching {
-                    withContext(Dispatchers.Default) {
-                        withTimeout(INFERENCE_TIMEOUT_MS) {
-                            val first = conversation.sendMessageAsync(prompt(transcript)).toList().joinToString("")
-                            if (looksLikeJson(first)) {
-                                first
-                            } else {
-                                repaired = true
-                                conversation.sendMessageAsync(repairPrompt(first)).toList().joinToString("")
-                            }
-                        }
-                    }
-                }.onFailure { error ->
+
+            var outcome = runCatching { askOnce(transcript) }
+            if (outcome.isFailure && isGpuFailure(outcome.exceptionOrNull())) {
+                val gpuError = outcome.exceptionOrNull()
+                if (gpuError is CancellationException) throw gpuError
+                Log.w(TAG, "GPU inference failed; rebuilding the runtime on CPU", gpuError)
+                gpuDisabled = true
+                resetRuntime()
+                outcome = runCatching { askOnce(transcript) }
+            }
+
+            outcome
+                .onFailure { error ->
                     // Cancellation is how a session ends normally (scope teardown,
                     // service stop). Swallowing it would corrupt structured-concurrency
                     // cancellation; only genuine inference failures degrade to null.
@@ -98,57 +95,127 @@ class GemmaLlmAdjudicator(
                             error.javaClass.simpleName,
                     )
                 }.getOrNull()
-                    .also { answer ->
-                        Log.i(
-                            TAG,
-                            "window chars=${transcript.length} repaired=$repaired " +
-                                "answer=${answer?.length ?: -1} chars " +
-                                "in ${SystemClock.elapsedRealtime() - started} ms",
-                        )
-                    }
-            } finally {
-                runCatching { conversation.close() }
-            }
+                .also { answer ->
+                    Log.i(
+                        TAG,
+                        "window chars=${transcript.length} repaired=${answer?.repaired} " +
+                            "answer=${answer?.text?.length ?: -1} chars " +
+                            "in ${SystemClock.elapsedRealtime() - started} ms",
+                    )
+                }?.text
         }
 
     /**
-     * First-request initialisation, timed and reported.
+     * One full inference on a conversation of its own.
      *
-     * Loading three gigabytes onto the GPU either works or it does not, and which
-     * one happened is the first thing to know when Tier 2 appears mute. Returns
-     * null on failure rather than throwing: the caller degrades to Tier 1 either
-     * way, and a null keeps that decision in one place.
+     * The conversation is created and closed per call, and only the [Engine] —
+     * the expensive part — is kept. A single long-lived conversation was reused
+     * for the whole session, so every excerpt and every repair prompt stayed in
+     * its history: context grew without bound across a call, inference slowed
+     * until it hit the timeout on every window, and the model was answering
+     * about a transcript it had seen twenty stale copies of. Each window is an
+     * independent question and is asked as one.
      */
-    private fun warmUp(): Engine? {
-        val started = SystemClock.elapsedRealtime()
-        return runCatching { initialize() }
-            .onSuccess { Log.i(TAG, "engine ready on GPU in ${SystemClock.elapsedRealtime() - started} ms") }
-            .onFailure { error ->
-                if (error is CancellationException) throw error
-                Log.w(TAG, "engine init FAILED after ${SystemClock.elapsedRealtime() - started} ms", error)
-            }.getOrNull()
+    private suspend fun askOnce(transcript: String): Answer {
+        val activeEngine = engine ?: warmUpEngine()
+        val conversation =
+            activeEngine.createConversation(
+                ConversationConfig(systemInstruction = Contents.of(SYSTEM_INSTRUCTION)),
+            )
+        return try {
+            withContext(Dispatchers.Default) {
+                withTimeout(INFERENCE_TIMEOUT_MS) {
+                    val first = conversation.sendMessageAsync(prompt(transcript)).toList().joinToString("")
+                    if (looksLikeJson(first)) {
+                        Answer(first, repaired = false)
+                    } else {
+                        Answer(
+                            conversation.sendMessageAsync(repairPrompt(first)).toList().joinToString(""),
+                            repaired = true,
+                        )
+                    }
+                }
+            }
+        } finally {
+            runCatching { conversation.close() }
+        }
     }
 
-    /** Initializes the risky runtime only when the first Tier-2 request arrives. */
-    private fun initialize(): Engine {
+    /**
+     * Initializes the risky runtime only when the first Tier-2 request arrives,
+     * timed and reported.
+     *
+     * GPU first — the shipped model is the GPU build — with an automatic CPU
+     * fallback: some devices ship no OpenCL driver, and there the GPU engine
+     * fails to initialize. Once GPU has failed we remember it and never pay that
+     * cost again. Loading three gigabytes either works or it does not, and which
+     * one happened is the first thing to know when Tier 2 appears mute.
+     */
+    private fun warmUpEngine(): Engine {
         check(!closed) { "adjudicator is closed" }
+        val started = SystemClock.elapsedRealtime()
+        if (gpuDisabled) return initializeWith(Backend.CPU(), "CPU", started)
+        return try {
+            initializeWith(Backend.GPU(), "GPU", started)
+        } catch (cancelled: CancellationException) {
+            // Teardown, not a GPU problem. Rebuilding on CPU here would resurrect
+            // a runtime the caller has just asked us to stop building.
+            throw cancelled
+        } catch (gpuError: Throwable) {
+            Log.w(TAG, "GPU engine init failed; falling back to CPU", gpuError)
+            gpuDisabled = true
+            initializeWith(Backend.CPU(), "CPU", started)
+        }
+    }
+
+    private fun initializeWith(
+        backend: Backend,
+        name: String,
+        startedMs: Long,
+    ): Engine {
         val configuredEngine =
             Engine(
                 EngineConfig(
                     modelPath = modelPath,
-                    backend = Backend.GPU(),
+                    backend = backend,
                     cacheDir = cacheDir.absolutePath,
                 ),
             )
         return try {
             configuredEngine.initialize()
             engine = configuredEngine
+            Log.i(TAG, "engine ready on $name in ${SystemClock.elapsedRealtime() - startedMs} ms")
             configuredEngine
         } catch (error: Throwable) {
             configuredEngine.close()
             throw error
         }
     }
+
+    /**
+     * Drops the native runtime without closing the adjudicator: the next
+     * request re-initializes, on the CPU backend once [gpuDisabled] is set.
+     */
+    private fun resetRuntime() {
+        runCatching { engine?.close() }
+        engine = null
+    }
+
+    /**
+     * True when a failure is the known GPU-backend death (missing OpenCL
+     * driver, GPU session reset) that a CPU rebuild can fix — not a timeout
+     * or a malformed prompt.
+     */
+    private fun isGpuFailure(error: Throwable?): Boolean =
+        error != null &&
+            generateSequence(error) { it.cause }
+                .take(CAUSE_CHAIN_DEPTH)
+                .any { stage ->
+                    val message = stage.message ?: ""
+                    message.contains("OpenCL", ignoreCase = true) ||
+                        message.contains("cl_", ignoreCase = true) ||
+                        message.contains("gpu", ignoreCase = true)
+                }
 
     override fun close() {
         // best-effort synchronous detach for process teardown (onTerminate);
@@ -204,10 +271,14 @@ class GemmaLlmAdjudicator(
     private companion object {
         const val TAG = "KavachTier2"
 
+        /** How deep down a cause chain to look for the GPU marker. */
+        const val CAUSE_CHAIN_DEPTH = 4
+
         /**
-         * Generous on purpose. At 4 s a Gemma E4B on the GPU timed out on
-         * essentially every window, and each timeout is silent by design — so
-         * Tier 2 looked wired up while never once returning a verdict.
+         * Generous on purpose, and more so now that a CPU fallback exists — CPU
+         * inference on a 2.97 GB E4B is far slower than GPU. At 4 s the model
+         * timed out on essentially every window, and each timeout is silent by
+         * design, so Tier 2 looked wired up while never once returning a verdict.
          */
         const val INFERENCE_TIMEOUT_MS = 15_000L
         const val MAX_TRANSCRIPT_CHARS = 6_000

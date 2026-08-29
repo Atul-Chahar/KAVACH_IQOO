@@ -51,6 +51,16 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Kavach">
 
+        <!--
+          LiteRT-LM GPU backend (Tier 2). Without these declarations Android
+          blocks the OpenCL driver libraries for a plain app, so Engine init
+          with Backend.GPU() fails on device and Tier 2 never loads. Both are
+          optional: the engine falls back gracefully when absent.
+          See https://developers.google.com/edge/litert-lm/android
+        -->
+        <uses-native-library android:name="libvndksupport.so" android:required="false" />
+        <uses-native-library android:name="libOpenCL.so" android:required="false" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

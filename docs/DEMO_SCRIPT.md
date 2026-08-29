@@ -24,18 +24,22 @@ If you demo on earpiece it will look broken, and it is not.
 
 ## How the score is built
 
-Caps per family: AUTHORITY 18 · ISOLATION 22 · URGENCY 15 · CREDENTIAL 30 ·
-REMOTE 28. Diversity bonus: +12 per family beyond the second.
+Caps per family (lexicon 1.3.0): AUTHORITY 28 · ISOLATION 22 · URGENCY 24 ·
+CREDENTIAL 30 · REMOTE 28. Diversity bonus: +15 per family beyond the second.
 `HIGH_RISK` needs **≥70 AND ≥3 distinct families** — so the escalation below
 is deterministic, not hopeful.
 
 | After beat | Families | Score | Band |
 |---|---|---|---|
-| 1 | 1 | ~18 | WATCHING |
-| 2 | 2 | ~33 | WATCHING |
-| 3 | 3 | ~67 | **CAUTION (amber)** |
-| 4 | 4 | 100 | **HIGH_RISK (red alert)** |
+| 1 | 1 | ~28 | WATCHING |
+| 2 | 2 | ~52 | **CAUTION (amber)** |
+| 3 | 3 | ~89 | **HIGH_RISK (red alert)** |
+| 4 | 4 | 100 | HIGH_RISK, money + remote access named |
 | 5 | 5 | 100 | HIGH_RISK, all five named |
+
+Amber lands on beat 2 and red on beat 3, one beat earlier than before the 1.3.0
+tuning. On the fixture corpus the same change moved `digital-arrest-01` from
+36 s to 24 s for amber and from 60 s to 36 s for red.
 
 ---
 
@@ -51,17 +55,18 @@ is deterministic, not hopeful.
 > "Good afternoon. This is Inspector Sharma from the **CBI**.
 > **Your Aadhaar is linked** to a **money laundering** case."
 
-> **Beat 2 — Threat** *(expect: still calm — this is the point, one loud
-> family is not enough)*
+> **Beat 2 — Threat** *(expect: **amber CAUTION** — two families, and the
+> track crosses 40)*
 > "An **arrest warrant** has been issued against you. This is a
 > **non bailable** offence. **You will be arrested within two hours**."
 
-> **Beat 3 — Isolation** *(expect: **amber CAUTION**, tactics start listing)*
+> **Beat 3 — Isolation** *(expect: **RED. Full-screen warning, double buzz,
+> Call 1930 button** — three families is the rule, and this is it)*
 > "You are under **digital arrest**. **Do not tell anyone** — not your family.
 > **Keep your camera on** and do not disconnect this call."
 
-> **Beat 4 — Money + remote access** *(expect: **RED. Full-screen warning,
-> double buzz, Call 1930 button**)*
+> **Beat 4 — Money + remote access** *(expect: still red, now naming the
+> money and the remote-access tactics too)*
 > "For clearance you must **transfer to this account**. It is a
 > **safe custody account**, fully refundable. Now install **AnyDesk** and
 > turn **screen sharing on**."

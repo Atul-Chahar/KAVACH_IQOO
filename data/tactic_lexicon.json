@@ -1,6 +1,6 @@
 {
   "$schema": "kavach.tactic-lexicon.v1",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "updated": "2026-08-29",
   "provenance": "Markers compiled from publicly published advisories: I4C citizen advisory on digital arrest, PhonePe Trust & Safety, Seqrite threat research, RBI advisories on remote-access-app fraud, and mainstream red-flag explainers. No private or field data.",
   "notes": "Romanised (Hinglish) spellings are included deliberately so keyword matching survives imperfect ASR on code-switched speech. Match case-insensitively on a normalised transcript. 1.2.0 brings the Devanagari half to parity with the Latin half: the hi-IN recogniser emits Devanagari, and with only 16 markers in that script a Hindi-transcribed call was matched against a seventh of the lexicon. Negative guards were transliterated in the same pass — guards are the false-positive defence, and a Latin-only guard set would have raised the score on exactly the legitimate Hindi calls it exists to protect.",
@@ -9,7 +9,7 @@
     "cautionThreshold": 40,
     "decayHalfLifeSeconds": 120,
     "minDistinctFamiliesForHighRisk": 3,
-    "familyDiversityBonus": 12,
+    "familyDiversityBonus": 15,
     "maxScorePerFamily": 30
   },
   "families": [
@@ -17,7 +17,7 @@
       "id": "AUTHORITY_IMPERSONATION",
       "displayEn": "Caller claims to be law enforcement or a bank",
       "displayHi": "कॉल करने वाला खुद को पुलिस या बैंक अधिकारी बता रहा है",
-      "baseWeight": 18,
+      "baseWeight": 28,
       "markers": [
         {
           "t": "cbi",
@@ -162,6 +162,46 @@
         {
           "t": "गिरफ्तारी वारंट निकला",
           "w": 25
+        },
+        {
+          "t": "bank ke fraud department",
+          "w": 14
+        },
+        {
+          "t": "bank fraud department",
+          "w": 14
+        },
+        {
+          "t": "fraud department se bol raha",
+          "w": 14
+        },
+        {
+          "t": "fraud monitoring team",
+          "w": 12
+        },
+        {
+          "t": "from the fraud department",
+          "w": 14
+        },
+        {
+          "t": "bank ki taraf se bol raha",
+          "w": 12
+        },
+        {
+          "t": "card division se bol raha",
+          "w": 12
+        },
+        {
+          "t": "बैंक के फ्रॉड डिपार्टमेंट",
+          "w": 14
+        },
+        {
+          "t": "फ्रॉड डिपार्टमेंट से बोल रहा",
+          "w": 14
+        },
+        {
+          "t": "बैंक की तरफ से बोल रहा",
+          "w": 12
         }
       ]
     },
@@ -285,7 +325,7 @@
       "id": "URGENCY_AND_THREAT",
       "displayEn": "You are being pressured with threats and deadlines",
       "displayHi": "आप पर धमकी और समय-सीमा का दबाव डाला जा रहा है",
-      "baseWeight": 15,
+      "baseWeight": 24,
       "markers": [
         {
           "t": "within two hours",
