@@ -1,8 +1,12 @@
 package com.kavach.app.ui
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
@@ -13,6 +17,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -22,6 +27,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -37,6 +43,8 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
@@ -49,12 +57,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import com.kavach.app.R
+import com.kavach.app.capture.CaptureState
 import com.kavach.app.monitor.MonitorMode
 import com.kavach.app.monitor.ShieldUiState
 import com.kavach.app.monitor.TacticEvidence
 import com.kavach.app.setup.Capability
+import com.kavach.domain.RiskAssessment
 import com.kavach.domain.RiskBand
 import java.util.Locale
+import kotlin.math.sin
 
 /**
  * The alert surface.
@@ -74,6 +85,7 @@ import java.util.Locale
 @Composable
 fun ShieldScreen(
     state: ShieldUiState,
+    capture: CaptureState = CaptureState(),
     onStartLive: () -> Unit,
     onStartDemo: () -> Unit,
     onStop: () -> Unit,
@@ -88,7 +100,7 @@ fun ShieldScreen(
     onFixCapability: (String) -> Unit = {},
 ) {
     if (state.monitoring) {
-        MonitorSurface(state, onStop, onToggleTranscript, onDismissAlert, onCall1930, modifier)
+        MonitorSurface(state, capture, onStop, onToggleTranscript, onDismissAlert, onCall1930, modifier)
     } else {
         HomeSurface(
             state,
@@ -418,6 +430,7 @@ private fun HeroAction(onStart: () -> Unit) {
 @Composable
 private fun MonitorSurface(
     state: ShieldUiState,
+    capture: CaptureState,
     onStop: () -> Unit,
     onToggleTranscript: (Boolean) -> Unit,
     onDismissAlert: () -> Unit,
@@ -448,8 +461,8 @@ private fun MonitorSurface(
             }
 
             when (state.band) {
-                RiskBand.WATCHING -> WatchingBody(state, palette, onToggleTranscript)
-                RiskBand.CAUTION -> CautionBody(state, palette, onToggleTranscript)
+                RiskBand.WATCHING -> WatchingBody(state, capture, palette, onToggleTranscript)
+                RiskBand.CAUTION -> CautionBody(state, capture, palette, onToggleTranscript)
                 RiskBand.HIGH_RISK -> HighRiskBody(state, palette)
             }
         }
@@ -617,13 +630,21 @@ private fun Announcement(
 @Composable
 private fun ColumnScope.WatchingBody(
     state: ShieldUiState,
+    capture: CaptureState,
     palette: BandPalette,
     onToggleTranscript: (Boolean) -> Unit,
 ) {
-    Gap(34.dp)
-    Waveform(palette.accent)
+    Gap(28.dp)
+    Waveform(palette.accent, capture)
+    Gap(12.dp)
+    HearingLine(capture, palette)
 
-    Gap(34.dp)
+    Gap(26.dp)
+    Rule(palette.rule)
+    Gap(20.dp)
+    RiskTrack(state, palette)
+
+    Gap(24.dp)
     Rule(palette.rule)
     Gap(20.dp)
     Row(
@@ -667,9 +688,15 @@ private fun ColumnScope.WatchingBody(
 @Composable
 private fun ColumnScope.CautionBody(
     state: ShieldUiState,
+    capture: CaptureState,
     palette: BandPalette,
     onToggleTranscript: (Boolean) -> Unit,
 ) {
+    Gap(20.dp)
+    RiskTrack(state, palette)
+    Gap(10.dp)
+    HearingLine(capture, palette)
+
     Gap(22.dp)
     FamilyMeter(
         seen = state.familiesSeen,
@@ -744,12 +771,8 @@ private fun ColumnScope.HighRiskBody(
     EvidenceList(state.tacticEvidence, state.elapsedMs, palette, compact = true)
 
     if (state.transcriptPreview.isNotBlank()) {
-        Gap(8.dp)
-        Text(
-            stringResource(R.string.heard_not_saved, state.transcriptPreview.takeLast(HEARD_CHARS)),
-            style = MaterialTheme.typography.bodySmall,
-            color = palette.ink,
-        )
+        Gap(12.dp)
+        TranscriptBlock(state.transcriptPreview, palette)
     }
     state.degradedReason?.let {
         Gap(10.dp)
@@ -875,11 +898,46 @@ private fun TranscriptToggle(
 
     if (state.showTranscript && state.transcriptPreview.isNotBlank()) {
         Gap(12.dp)
-        Text(
-            state.transcriptPreview.takeLast(HEARD_CHARS),
-            style = MaterialTheme.typography.bodySmall,
-            color = palette.inkSoft,
+        TranscriptBlock(state.transcriptPreview, palette)
+    }
+}
+
+/**
+ * The words Kavach just heard, set to be read rather than skimmed past.
+ *
+ * This was one line of `bodySmall` in the secondary ink, on paper of nearly the
+ * same value — indistinguishable from the explanatory copy above it, which made
+ * the single most useful signal on the screen invisible. It is now a block: full
+ * -strength ink, a tinted ground, and a spot-colour rule down the left edge, so
+ * it reads as quoted material and can be found at a glance from arm's length.
+ */
+@Composable
+private fun TranscriptBlock(
+    transcript: String,
+    palette: BandPalette,
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .height(IntrinsicSize.Min)
+            .clip(RoundedCornerShape(KavachTokens.RadiusTag))
+            .background(palette.accent.copy(alpha = TRANSCRIPT_WASH)),
+    ) {
+        Box(
+            Modifier
+                .width(3.dp)
+                .fillMaxHeight()
+                .background(palette.accent),
         )
+        Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+            SmallCaps(stringResource(R.string.heard_label), palette.accent)
+            Gap(6.dp)
+            Text(
+                transcript.takeLast(HEARD_CHARS),
+                style = MaterialTheme.typography.bodyMedium,
+                color = palette.ink,
+            )
+        }
     }
 }
 
@@ -968,45 +1026,202 @@ private fun SessionFooter(
 // Shared pieces
 // ---------------------------------------------------------------------------
 
-/** A still bar chart. It suggests a live mic without pretending to be a meter. */
+/**
+ * The live risk track.
+ *
+ * The whole screen used to change only at 40 and 70 — the ground went amber,
+ * then red — and between those two moments it looked exactly the same whether
+ * the engine was scoring hard or had stopped receiving audio an hour ago. There
+ * was no way to tell a working session from a dead one until it happened to
+ * cross a line.
+ *
+ * So the number is drawn, moving, with both thresholds marked on the track
+ * itself. The thresholds come from [ShieldUiState], which reads them from the
+ * lexicon the scorer uses, so this can never disagree with the engine about
+ * where the lines are.
+ */
 @Composable
-private fun Waveform(color: Color) {
-    val heights =
-        listOf(
-            0.18f,
-            0.34f,
-            0.62f,
-            0.88f,
-            0.46f,
-            0.70f,
-            1f,
-            0.52f,
-            0.26f,
-            0.60f,
-            0.38f,
-            0.74f,
-            0.22f,
-            0.48f,
-            0.30f,
-            0.64f,
-            0.16f,
-            0.42f,
+private fun RiskTrack(
+    state: ShieldUiState,
+    palette: BandPalette,
+) {
+    val target = state.score.coerceIn(0, RiskAssessment.MAX_SCORE)
+    val fill by animateFloatAsState(
+        targetValue = target.toFloat() / RiskAssessment.MAX_SCORE,
+        animationSpec = tween(SCORE_ANIM_MS, easing = FastOutSlowInEasing),
+        label = "risk-fill",
+    )
+    val shown by animateIntAsState(
+        targetValue = target,
+        animationSpec = tween(SCORE_ANIM_MS),
+        label = "risk-score",
+    )
+
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Bottom,
+    ) {
+        SmallCaps(stringResource(R.string.live_risk_label), palette.inkMuted)
+        Text(
+            shown.toString(),
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = palette.ink,
         )
+    }
+    Gap(8.dp)
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(TRACK_HEIGHT)
+            .clip(RoundedCornerShape(KavachTokens.RadiusTag))
+            .background(palette.accent.copy(alpha = TRACK_EMPTY_ALPHA))
+            .semantics { contentDescription = "" },
+    ) {
+        Box(
+            Modifier
+                .fillMaxWidth(fill)
+                .fillMaxHeight()
+                .background(palette.accent),
+        )
+        ThresholdTick(state.cautionThreshold, palette)
+        ThresholdTick(state.highRiskThreshold, palette)
+    }
+    Gap(8.dp)
+    Text(
+        stringResource(R.string.risk_thresholds, state.cautionThreshold, state.highRiskThreshold),
+        style = MaterialTheme.typography.labelSmall,
+        color = palette.inkMuted,
+    )
+}
+
+/** One hairline on the track, at the score where the band changes. */
+@Composable
+private fun ThresholdTick(
+    at: Int,
+    palette: BandPalette,
+) {
+    if (at <= 0) return
+    Row(
+        Modifier
+            .fillMaxWidth(at.toFloat() / RiskAssessment.MAX_SCORE)
+            .fillMaxHeight(),
+        horizontalArrangement = Arrangement.End,
+    ) {
+        Box(
+            Modifier
+                .width(TICK_WIDTH)
+                .fillMaxHeight()
+                .background(palette.ink.copy(alpha = TICK_ALPHA)),
+        )
+    }
+}
+
+/**
+ * Whether the microphone is actually delivering sound, in one line.
+ *
+ * The dot and the sentence read from [CaptureState], not from whether a session
+ * is nominally running — the platform hands a muted app frames of zeroes rather
+ * than an error, so "we started capture" and "we can hear" are different claims
+ * and only the second one is worth making.
+ */
+@Composable
+private fun HearingLine(
+    capture: CaptureState,
+    palette: BandPalette,
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            Modifier
+                .size(8.dp)
+                .clip(CircleShape)
+                .background(if (capture.hearing) palette.accent else palette.inkMuted.copy(alpha = 0.45f)),
+        )
+        GapW(8.dp)
+        Text(
+            stringResource(if (capture.hearing) R.string.hearing_yes else R.string.hearing_no),
+            style = MaterialTheme.typography.labelMedium,
+            color = palette.inkSoft,
+        )
+    }
+}
+
+/**
+ * The live waveform.
+ *
+ * It was eighteen fixed heights — a picture of a microphone rather than a report
+ * from one, identical whether or not a single frame had arrived. It now moves,
+ * and it moves at the amplitude the microphone is genuinely delivering:
+ * [CaptureState.rmsDb] is the same number the diagnostics panel prints.
+ *
+ * Crucially it flattens to a line when nothing is being heard. A wave animating
+ * over a muted microphone would be decoration that reads as reassurance, which
+ * is the false all-clear docs/SAFETY.md forbids — so the animation is allowed to
+ * be pretty only while it is also true.
+ */
+@Composable
+private fun Waveform(
+    color: Color,
+    capture: CaptureState,
+) {
+    val level by animateFloatAsState(
+        targetValue = captureLevel(capture),
+        animationSpec = tween(LEVEL_ANIM_MS),
+        label = "wave-level",
+    )
+    val transition = rememberInfiniteTransition(label = "wave")
+    val phase by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = TWO_PI,
+        animationSpec = infiniteRepeatable(tween(WAVE_PERIOD_MS, easing = LinearEasing)),
+        label = "wave-phase",
+    )
+
     Row(
         Modifier.fillMaxWidth().height(80.dp).semantics { contentDescription = "" },
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.Bottom,
     ) {
-        heights.forEach { fraction ->
+        repeat(WAVE_BARS) { index ->
             Box(
                 Modifier
                     .weight(1f)
-                    .fillMaxHeight(fraction)
-                    .alpha(0.3f + fraction * 0.7f)
-                    .background(color, RoundedCornerShape(KavachTokens.RadiusTag)),
+                    .fillMaxHeight()
+                    .graphicsLayer {
+                        val height = barHeight(index, phase, level)
+                        scaleY = height
+                        alpha = WAVE_MIN_ALPHA + height * (1f - WAVE_MIN_ALPHA)
+                        transformOrigin = TransformOrigin(0.5f, 1f)
+                    }.background(color, RoundedCornerShape(KavachTokens.RadiusTag)),
             )
         }
     }
+}
+
+/**
+ * Two out-of-phase sines per bar, so the wave travels instead of pulsing in
+ * unison. [level] scales the whole thing, which is what collapses it to a flat
+ * line when the microphone is delivering nothing.
+ */
+private fun barHeight(
+    index: Int,
+    phase: Float,
+    level: Float,
+): Float {
+    val slow = 0.5f + 0.5f * sin(phase + index * WAVE_SPREAD_A)
+    val fast = 0.5f + 0.5f * sin(phase * WAVE_BEAT + index * WAVE_SPREAD_B)
+    val shape = WAVE_MIX * slow + (1f - WAVE_MIX) * fast
+    return (WAVE_FLOOR + shape * level * (1f - WAVE_FLOOR)).coerceIn(WAVE_FLOOR, 1f)
+}
+
+/**
+ * dBFS to a 0..1 bar height. Digital silence is negative infinity and lands
+ * flat, which is the case this mapping exists to render honestly.
+ */
+private fun captureLevel(capture: CaptureState): Float {
+    if (!capture.hearing || !capture.rmsDb.isFinite()) return 0f
+    return ((capture.rmsDb + WAVE_DB_FLOOR) / WAVE_DB_FLOOR).toFloat().coerceIn(0f, 1f)
 }
 
 @Composable
@@ -1049,6 +1264,27 @@ private fun FailureNote(reason: String) {
 }
 
 private const val HEARD_CHARS = 160
+
+/** Live risk track. */
+private val TRACK_HEIGHT = 10.dp
+private val TICK_WIDTH = 2.dp
+private const val TICK_ALPHA = 0.45f
+private const val TRACK_EMPTY_ALPHA = 0.16f
+private const val SCORE_ANIM_MS = 600
+private const val TRANSCRIPT_WASH = 0.10f
+
+/** Waveform. */
+private const val WAVE_BARS = 18
+private const val WAVE_PERIOD_MS = 1_900
+private const val LEVEL_ANIM_MS = 260
+private const val TWO_PI = 6.2831855f
+private const val WAVE_FLOOR = 0.06f
+private const val WAVE_MIN_ALPHA = 0.32f
+private const val WAVE_SPREAD_A = 0.55f
+private const val WAVE_SPREAD_B = 0.31f
+private const val WAVE_BEAT = 1.7f
+private const val WAVE_MIX = 0.6f
+private const val WAVE_DB_FLOOR = 60.0
 
 private fun elapsed(ms: Long): String {
     val totalSeconds = (ms / 1000L).coerceAtLeast(0L)

@@ -1,5 +1,7 @@
 package com.kavach.app.inference
 
+import android.os.SystemClock
+import android.util.Log
 import com.google.ai.edge.litertlm.Backend
 import com.google.ai.edge.litertlm.Contents
 import com.google.ai.edge.litertlm.ConversationConfig
@@ -58,13 +60,16 @@ class GemmaLlmAdjudicator(
             // a close racing an in-flight request can no longer free native
             // resources while this body is inside them (the use-after-free case).
             if (closed || transcript.isBlank()) return@withLock null
-            val activeEngine = engine ?: initialize()
+            val activeEngine = engine ?: warmUp() ?: return@withLock null
             val conversation =
                 runCatching {
                     activeEngine.createConversation(
                         ConversationConfig(systemInstruction = Contents.of(SYSTEM_INSTRUCTION)),
                     )
-                }.getOrNull() ?: return@withLock null
+                }.onFailure { Log.w(TAG, "could not open a conversation", it) }
+                    .getOrNull() ?: return@withLock null
+            var repaired = false
+            val started = SystemClock.elapsedRealtime()
             try {
                 runCatching {
                     withContext(Dispatchers.Default) {
@@ -73,6 +78,7 @@ class GemmaLlmAdjudicator(
                             if (looksLikeJson(first)) {
                                 first
                             } else {
+                                repaired = true
                                 conversation.sendMessageAsync(repairPrompt(first)).toList().joinToString("")
                             }
                         }
@@ -82,11 +88,46 @@ class GemmaLlmAdjudicator(
                     // service stop). Swallowing it would corrupt structured-concurrency
                     // cancellation; only genuine inference failures degrade to null.
                     if (error is CancellationException) throw error
+                    // Every Tier-2 failure is silent to the user by design. Silent to
+                    // *us* as well is how the engine spent an entire event timing out
+                    // on every window while the app looked wired up. The reason and the
+                    // latency are logged; the conversation itself never is.
+                    Log.w(
+                        TAG,
+                        "inference failed after ${SystemClock.elapsedRealtime() - started} ms: " +
+                            error.javaClass.simpleName,
+                    )
                 }.getOrNull()
+                    .also { answer ->
+                        Log.i(
+                            TAG,
+                            "window chars=${transcript.length} repaired=$repaired " +
+                                "answer=${answer?.length ?: -1} chars " +
+                                "in ${SystemClock.elapsedRealtime() - started} ms",
+                        )
+                    }
             } finally {
                 runCatching { conversation.close() }
             }
         }
+
+    /**
+     * First-request initialisation, timed and reported.
+     *
+     * Loading three gigabytes onto the GPU either works or it does not, and which
+     * one happened is the first thing to know when Tier 2 appears mute. Returns
+     * null on failure rather than throwing: the caller degrades to Tier 1 either
+     * way, and a null keeps that decision in one place.
+     */
+    private fun warmUp(): Engine? {
+        val started = SystemClock.elapsedRealtime()
+        return runCatching { initialize() }
+            .onSuccess { Log.i(TAG, "engine ready on GPU in ${SystemClock.elapsedRealtime() - started} ms") }
+            .onFailure { error ->
+                if (error is CancellationException) throw error
+                Log.w(TAG, "engine init FAILED after ${SystemClock.elapsedRealtime() - started} ms", error)
+            }.getOrNull()
+    }
 
     /** Initializes the risky runtime only when the first Tier-2 request arrives. */
     private fun initialize(): Engine {
@@ -161,6 +202,8 @@ class GemmaLlmAdjudicator(
         """.trimIndent()
 
     private companion object {
+        const val TAG = "KavachTier2"
+
         /**
          * Generous on purpose. At 4 s a Gemma E4B on the GPU timed out on
          * essentially every window, and each timeout is silent by design — so

@@ -99,6 +99,11 @@
     <string name="show_words_label">Show the words Kavach heard</string>
     <string name="show_words_note">On this phone only. Never saved.</string>
     <string name="heard_not_saved">Heard, not saved: “%1$s”</string>
+    <string name="live_risk_label">Live risk</string>
+    <string name="risk_thresholds">Caution at %1$d · Warning at %2$d</string>
+    <string name="heard_label">Heard just now</string>
+    <string name="hearing_yes">Hearing the room</string>
+    <string name="hearing_no">No sound reaching Kavach</string>
     <string name="action_not_a_scam">Not a scam</string>
     <string name="action_stop_listening">Stop listening</string>
     <string name="tactic_caption">%1$s · %2$s</string>

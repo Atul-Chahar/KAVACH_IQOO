@@ -7,6 +7,7 @@ import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.kavach.app.KavachApplication
+import com.kavach.app.capture.CaptureState
 import com.kavach.app.capture.KavachService
 import com.kavach.app.monitor.MonitorMode
 import com.kavach.app.monitor.ShieldUiState
@@ -30,6 +31,14 @@ class ShieldViewModel(
     private val app = application as KavachApplication
 
     val state: StateFlow<ShieldUiState> = app.controller.state
+
+    /**
+     * Ground truth about the microphone, so the session screen can animate from
+     * the real signal instead of pretending. A waveform that moves while the
+     * platform is feeding us silence would be the false all-clear docs/SAFETY.md
+     * forbids, so the same flow that drives the diagnostics panel drives the art.
+     */
+    val capture: StateFlow<CaptureState> = app.diagnostics.state
 
     val fixtures: List<String> = app.demoFixtures()
 

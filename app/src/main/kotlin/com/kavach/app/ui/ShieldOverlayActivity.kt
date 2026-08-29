@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.view.Gravity
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -26,12 +27,21 @@ import com.kavach.domain.RiskBand
  * microphone goes deaf. That is why it stays up for the whole call rather than
  * flashing and finishing like an ordinary launcher shim.
  *
- * Staying up must not mean getting in the way, so the window is translucent and,
- * while there is nothing to say, untouchable: the call underneath is fully
- * visible and fully usable, and Kavach is a band across the top. The instant the
- * verdict reaches HIGH_RISK the window takes touch and becomes the full warning.
- * It never covers the bottom of the screen, because the user must always be able
- * to hang up without dismissing us first.
+ * Staying up must not mean getting in the way, and that is a statement about the
+ * *window*, not about what we draw in it. A full-screen window that merely paints
+ * a band at the top still covers the dialer, and Android then stamps every touch
+ * bound for the app underneath with `FLAG_WINDOW_IS_OBSCURED`. Any view with
+ * `filterTouchesWhenObscured` — which OEM in-call UIs and system dialogs set —
+ * silently discards those. The phone looks alive and answers nothing, including
+ * the button that picks up the call. `FLAG_NOT_TOUCHABLE` does not help: it stops
+ * us *consuming* touches, not *obscuring* them.
+ *
+ * So the passive shield is physically a band: the window itself is
+ * [BAND_HEIGHT_DP] tall, pinned to the top, and the rest of the screen has no
+ * Kavach window over it at all. The instant the verdict reaches HIGH_RISK the
+ * window grows to full screen and takes touch, because the user now has
+ * decisions to make. It never covers the bottom of the screen while passive,
+ * because the user must always be able to hang up without dismissing us first.
  */
 class ShieldOverlayActivity : ComponentActivity() {
     private val app get() = application as KavachApplication
@@ -57,9 +67,10 @@ class ShieldOverlayActivity : ComponentActivity() {
 
                 val alerting = state.band == RiskBand.HIGH_RISK && !state.alertDismissed
 
-                // Passive: touches fall through to the call. Alerting: we take them,
-                // because the user now has decisions to make and buttons to press.
-                LaunchedEffect(alerting) { setTouchable(alerting) }
+                // Passive: a band that neither takes nor obscures touch. Alerting:
+                // full screen and touchable, because the user now has decisions to
+                // make and buttons to press.
+                LaunchedEffect(alerting) { applyShieldMode(alerting) }
 
                 ShieldOverlay(
                     state = state,
@@ -102,12 +113,39 @@ class ShieldOverlayActivity : ComponentActivity() {
                     WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON,
             )
         }
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        applyShieldMode(alerting = false)
+    }
+
+    /**
+     * Sizes the window to what the shield currently has to say, and decides
+     * whether it may take touch.
+     *
+     * Both halves must move together. A touchable window that is still only a
+     * band cannot show the alert; a full-screen window that is passive is the
+     * bug this method exists to prevent — see the class comment.
+     *
+     * The cutout mode is set here rather than in [showOverLockScreen] because
+     * that version mutated the LayoutParams object in place and never called
+     * `setAttributes`, so it was decorative: the shield was not laid out into
+     * the punch-hole area it is drawn to align with.
+     */
+    private fun applyShieldMode(alerting: Boolean) {
+        val params = window.attributes
+        params.gravity = Gravity.TOP
+        params.width = WindowManager.LayoutParams.MATCH_PARENT
+        params.height =
+            if (alerting) {
+                WindowManager.LayoutParams.MATCH_PARENT
+            } else {
+                (BAND_HEIGHT_DP * resources.displayMetrics.density).toInt()
+            }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            window.attributes.layoutInDisplayCutoutMode =
+            params.layoutInDisplayCutoutMode =
                 WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
         }
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        setTouchable(false)
+        window.attributes = params
+        setTouchable(alerting)
     }
 
     private fun setTouchable(touchable: Boolean) {
@@ -132,6 +170,16 @@ class ShieldOverlayActivity : ComponentActivity() {
     }
 
     companion object {
+        /**
+         * How tall the passive shield is allowed to be, in dp.
+         *
+         * Generous enough for the pill and for the taller can't-hear card, and
+         * far short of the dialer's answer and hang-up controls, which is the
+         * point: everything below this line is untouched by Kavach and behaves
+         * exactly as it would if we were not running.
+         */
+        private const val BAND_HEIGHT_DP = 280
+
         const val ACTION_DISMISS = "com.kavach.app.SHIELD_DISMISS"
 
         /**

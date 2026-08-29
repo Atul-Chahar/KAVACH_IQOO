@@ -6,6 +6,8 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
@@ -19,8 +21,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -47,6 +51,7 @@ import androidx.compose.ui.unit.sp
 import com.kavach.app.capture.CaptureState
 import com.kavach.app.capture.audioModeName
 import com.kavach.app.monitor.ShieldUiState
+import com.kavach.domain.RiskAssessment
 import com.kavach.domain.RiskBand
 import kotlinx.coroutines.delay
 
@@ -118,6 +123,75 @@ fun ShieldOverlay(
         }
     }
 }
+
+/**
+ * The live score, as a number.
+ *
+ * This tag used to read a fixed "HI+EN", which told the user nothing that
+ * changed during the call — over ninety seconds the capsule looked identical
+ * whether the engine was scoring hard or had gone deaf. The language actually
+ * heard is in the telemetry drawer below, which is where a value that changes
+ * once a session belongs.
+ */
+@Composable
+private fun PillScoreTag(
+    score: Int,
+    isCaution: Boolean,
+) {
+    val shown by animateIntAsState(
+        targetValue = score.coerceIn(0, RiskAssessment.MAX_SCORE),
+        animationSpec = tween(PILL_SCORE_MS),
+        label = "pillScore",
+    )
+    Box(
+        Modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(Color(0xFF2B2725))
+            .padding(horizontal = 7.dp, vertical = 2.dp),
+    ) {
+        Text(
+            text = shown.toString(),
+            color = if (isCaution) KavachTokens.Amber else KavachTokens.Cyan,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+        )
+    }
+}
+
+/**
+ * The same score as a track. Two digits are hard to read at a glance on a call
+ * screen; a bar that visibly grows is not, and growth is the thing the user is
+ * actually asking about when they wonder whether Kavach is working.
+ */
+@Composable
+private fun PillScoreTrack(
+    score: Int,
+    isCaution: Boolean,
+) {
+    val fill by animateFloatAsState(
+        targetValue = score.coerceIn(0, RiskAssessment.MAX_SCORE).toFloat() / RiskAssessment.MAX_SCORE,
+        animationSpec = tween(PILL_SCORE_MS),
+        label = "pillFill",
+    )
+    Spacer(Modifier.size(6.dp))
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(3.dp)
+            .clip(RoundedCornerShape(2.dp))
+            .background(Color(0xFF2B2725)),
+    ) {
+        Box(
+            Modifier
+                .fillMaxWidth(fill)
+                .fillMaxHeight()
+                .background(if (isCaution) KavachTokens.Amber else KavachTokens.Cyan),
+        )
+    }
+}
+
+/** How long the pill's score takes to travel to a new value. */
+private const val PILL_SCORE_MS = 600
 
 /**
  * The Floating Dynamic Island / Live Capsule.
@@ -209,21 +283,10 @@ private fun DynamicIslandPill(
 
             Spacer(Modifier.size(8.dp))
 
-            // Language / Telemetry Pill Tag
-            Box(
-                Modifier
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Color(0xFF2B2725))
-                    .padding(horizontal = 6.dp, vertical = 2.dp),
-            ) {
-                Text(
-                    text = if (capture.language.isNotBlank()) "HI+EN" else "ASR",
-                    color = KavachTokens.Cyan,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
+            PillScoreTag(state.score, isCaution)
         }
+
+        PillScoreTrack(state.score, isCaution)
 
         // Expanded Diagnostics Drawer
         AnimatedVisibility(

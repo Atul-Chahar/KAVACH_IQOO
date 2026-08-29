@@ -12,6 +12,7 @@ import com.kavach.domain.VerdictSchema
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -121,6 +122,14 @@ class ShieldController(
                         if (!window.isPartial) queue.trySend(window.text)
                         publish(merged(assessment), window.text)
                     }
+                    if (mode == MonitorMode.DEMO) {
+                        // In DemoMode, hold the final warning screen indefinitely
+                        // instead of closing and returning to the home screen. Stop the ticker
+                        // so time decay doesn't degrade the final score while idle.
+                        ticker.cancel()
+                        judge.cancel()
+                        awaitCancellation()
+                    }
                 }.onFailure { error ->
                     // Cancellation is how a session ends normally. Reporting it as a
                     // capture failure would put a false error on screen every time
@@ -130,7 +139,7 @@ class ShieldController(
                     _state.update { it.copy(monitoring = false, failureReason = error.message ?: "capture stopped") }
                 }
 
-                // The source ran out: a DemoMode fixture reached its last line.
+                // The source ran out: a live session ended or error occurred.
                 // Close the session explicitly rather than leaving a frozen clock
                 // on screen, and keep the final verdict visible.
                 ticker.cancel()
@@ -191,13 +200,36 @@ class ShieldController(
         }
     }
 
-    /** One window. Any failure returns quietly; the user keeps seeing Tier 1. */
+    /**
+     * One window. Any failure returns quietly; the user keeps seeing Tier 1.
+     *
+     * Quiet to the *user*, not to logcat. Silence in both directions is why the
+     * model could be loaded, wired and answering nothing at all without anybody
+     * being able to tell — so each window records whether a verdict arrived, and
+     * what it changed about the number on screen. The transcript is never logged,
+     * and neither is the model's sentence: both are derived from what was said.
+     */
     private suspend fun adjudicateOne(transcript: String) {
         val engineRef = adjudicator ?: return
         val raw = runCatching { engineRef.adjudicate(transcript) }.getOrNull()
-        val verdict = VerdictSchema.parseOrNull(raw, knownFamilies) ?: return
+        val verdict = VerdictSchema.parseOrNull(raw, knownFamilies)
+        if (verdict == null) {
+            android.util.Log.i(
+                TIER2_TAG,
+                "no usable verdict (raw=${raw?.length ?: -1} chars) — showing Tier 1",
+            )
+            return
+        }
+        val tier1 = engine.assess(elapsedMs())
         llmVerdict = verdict
-        publish(merged(engine.assess(elapsedMs())), _state.value.transcriptPreview)
+        val shown = merged(tier1)
+        android.util.Log.i(
+            TIER2_TAG,
+            "verdict risk=${verdict.risk} tactics=${verdict.tactics} " +
+                "action=${verdict.recommendedAction} " +
+                "tier1=${tier1.score}/${tier1.band} shown=${shown.score}/${shown.band}",
+        )
+        publish(shown, _state.value.transcriptPreview)
     }
 
     /**
@@ -286,12 +318,15 @@ class ShieldController(
         state.copy(
             familiesTotal = lexicon.families.size,
             familiesForWarning = lexicon.scoring.minDistinctFamiliesForHighRisk,
+            cautionThreshold = lexicon.scoring.cautionThreshold,
+            highRiskThreshold = lexicon.scoring.highRiskThreshold,
             lexiconVersion = lexicon.version,
         )
 
     private fun elapsedMs() = clock() - sessionStartMs
 
     private companion object {
+        const val TIER2_TAG = "KavachTier2"
         const val TICK_MS = 1_000L
         const val TRANSCRIPT_PREVIEW_CHARS = 240
         const val DEGRADED_NO_MODEL = "Advanced analysis unavailable"

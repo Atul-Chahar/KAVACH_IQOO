@@ -150,8 +150,10 @@ private fun ShieldRoute(
     val context = LocalContext.current
     val state by viewModel.state.collectAsStateWithLifecycle()
     val modelState by viewModel.modelState.collectAsStateWithLifecycle()
+    val capture by viewModel.capture.collectAsStateWithLifecycle()
     ShieldScreen(
         state = state,
+        capture = capture,
         onStartLive = actions.startLive,
         onStartDemo = actions.startDemo,
         onStop = viewModel::stop,
