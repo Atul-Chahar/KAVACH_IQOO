@@ -111,6 +111,7 @@ class ShieldController(
                     transcriptSource.start()
                     transcriptSource.transcripts().collect { window ->
                         val assessment = engine.onTranscript(window, elapsedMs())
+                        logMatch(window, assessment)
                         recorder.onAssessment(assessment, clock())
                         queue.trySend(window.text)
                         publish(merged(assessment), window.text)
@@ -194,6 +195,25 @@ class ShieldController(
         publish(merged(engine.assess(elapsedMs())), _state.value.transcriptPreview)
     }
 
+    /**
+     * Enough to debug detection on a real device without ever logging the
+     * conversation: which families fired, which marker spans caused them, and
+     * the resulting score. The words the user actually said are not written
+     * anywhere, including here.
+     */
+    private fun logMatch(
+        window: com.kavach.domain.TranscriptWindow,
+        assessment: RiskAssessment,
+    ) {
+        android.util.Log.d(
+            "KavachMatch",
+            "chars=${window.text.length} partial=${window.isPartial} " +
+                "score=${assessment.score} band=${assessment.band} " +
+                "families=${assessment.matchedFamilies} " +
+                "spans=${assessment.evidence.take(EVIDENCE_LOG_LIMIT).map { it.evidenceSpan }}",
+        )
+    }
+
     /** Tier 1, with Tier 2 folded in if it has ever spoken this session. */
     private fun merged(assessment: RiskAssessment): RiskAssessment =
         llmVerdict?.let { engine.merge(assessment, it) } ?: assessment
@@ -270,5 +290,6 @@ class ShieldController(
         const val TICK_MS = 1_000L
         const val TRANSCRIPT_PREVIEW_CHARS = 240
         const val DEGRADED_NO_MODEL = "Advanced analysis unavailable"
+        const val EVIDENCE_LOG_LIMIT = 6
     }
 }
