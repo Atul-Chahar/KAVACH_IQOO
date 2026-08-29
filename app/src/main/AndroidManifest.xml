@@ -18,6 +18,17 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
 
+    <!--
+      Two permissions, one mechanism. SYSTEM_ALERT_WINDOW is a documented
+      exemption from the background-activity-launch restriction, which is how a
+      call that starts while Kavach is asleep can raise the shield without the
+      user opening anything. Raising the shield makes Kavach a foreground app,
+      which is what legalises the microphone foreground service and satisfies the
+      audio policy's "UI on top" condition. See docs/SAFETY.md.
+    -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+
     <!-- S3.1 (P2 stretch): QR guard. Declared optional so the app installs on
          any device even if the camera is unavailable. -->
     <uses-feature android:name="android.hardware.camera" android:required="false" />
@@ -42,6 +53,26 @@
         </activity>
 
         <!--
+          The shield. Stays on screen for the length of a monitored call, because
+          Android's audio policy only lifts the in-call microphone block while an
+          accessibility service's UI is on top. Translucent, and untouchable until
+          it has something to warn about, so the call underneath stays usable.
+
+          excludeFromRecents + noHistory would break the "on top" guarantee on
+          some OEMs, so neither is set. singleTask keeps exactly one instance.
+        -->
+        <activity
+            android:name=".ui.ShieldOverlayActivity"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:taskAffinity=".shield"
+            android:showOnLockScreen="true"
+            android:turnScreenOn="true"
+            android:excludeFromRecents="true"
+            android:configChanges="orientation|screenSize|keyboardHidden|uiMode"
+            android:theme="@style/Theme.Kavach.Overlay" />
+
+        <!--
           Hosts a monitoring session. type=microphone is what Android requires
           for ambient capture, and the persistent notification it forces is a
           feature: it is how the user knows we are listening (docs/SAFETY.md 7).
@@ -50,5 +81,36 @@
             android:name=".capture.KavachService"
             android:exported="false"
             android:foregroundServiceType="microphone" />
+
+        <!--
+          Reads nothing. Registered solely to place Kavach's UID on the list the
+          audio policy consults before deciding whether to mute us during a call
+          — the one exemption a non-privileged app can reach. See
+          res/xml/kavach_accessibility_config.xml and docs/SAFETY.md.
+        -->
+        <service
+            android:name=".a11y.KavachAccessibilityService"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/kavach_accessibility_config" />
+        </service>
+
+        <!-- The manual door: one tap from the shade, over a call or a lock screen. -->
+        <service
+            android:name=".tile.KavachTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_shield"
+            android:label="@string/tile_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
     </application>
 </manifest>

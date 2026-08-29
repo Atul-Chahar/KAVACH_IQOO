@@ -1,4 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.Kavach" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <!--
+      The shield sits on top of a live call for the whole call, because being on
+      top is what keeps Android from muting our microphone. Translucent and
+      floating so the call underneath stays visible and usable; the window flags
+      that let touches fall through are set at runtime, since the shield must
+      take touch the moment it has something to warn about.
+    -->
+    <style name="Theme.Kavach.Overlay" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowShowWallpaper">false</item>
+    </style>
 </resources>

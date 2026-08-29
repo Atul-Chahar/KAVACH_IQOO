@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The narrowest accessibility declaration Android will accept.
+
+  canRetrieveWindowContent is FALSE and there is no flagRequestFilterKeyEvents,
+  no flagRetrieveInteractiveWindows and no packageNames whitelist to widen.
+  KavachAccessibilityService.onAccessibilityEvent discards every event it is
+  handed; typeWindowStateChanged is declared only because a registered service
+  must name at least one type.
+
+  Why we are registered at all: Android's audio policy silences an ordinary
+  app's microphone during a call. The one exemption a non-privileged app can
+  reach is documented at developer.android.com/media/platform/sharing-audio-input
+  — an accessibility service whose UI is on top keeps receiving audio input.
+  This file buys that exemption and nothing else.
+-->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/a11y_description"
+    android:summary="@string/a11y_summary"
+    android:accessibilityEventTypes="typeWindowStateChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:canRetrieveWindowContent="false"
+    android:notificationTimeout="1000" />

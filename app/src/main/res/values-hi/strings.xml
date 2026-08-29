@@ -106,4 +106,12 @@
     <string name="model_status_invalid">उपयोग योग्य नहीं</string>
     <string name="model_setup_heading">सेटअप</string>
     <string name="next_family_subtitle_plural">%1$d और तरीके आने पर यह चेतावनी बन जाएगी</string>
+    <string name="a11y_description">कवच कुछ नहीं पढ़ता। यह सेवा सिर्फ़ इसलिए है क्योंकि कॉल के दौरान एंड्रॉइड हर सामान्य ऐप का माइक्रोफ़ोन बंद कर देता है, और एक्सेसिबिलिटी सेवा इसका एकमात्र दर्ज अपवाद है। कोई स्क्रीन, कोई टेक्स्ट, कोई बटन कभी नहीं पढ़ा जाता।</string>
+    <string name="a11y_summary">कवच को कॉल सुनने देता है। कुछ नहीं पढ़ता।</string>
+    <string name="tile_label">कवच शील्ड</string>
+    <string name="notification_channel_alert_name">धोखाधड़ी की चेतावनी</string>
+    <string name="notification_channel_alert_description">जब कॉल किसी ज्ञात स्कैम पैटर्न से मेल खाती है। डू नॉट डिस्टर्ब को पार करती है।</string>
+    <string name="action_dial_1930">1930 पर कॉल करें</string>
+    <string name="setup_title">कवच अभी क्या कर सकता है</string>
+    <string name="setup_restricted_hint">ऐप स्टोर के बाहर से इंस्टॉल किए गए ऐप्स के लिए एंड्रॉइड यह विकल्प रोक देता है। App info खोलें, ऊपर दाईं ओर तीन बिंदुओं पर टैप करें, “Allow restricted settings” चुनें, फिर वापस आएँ।</string>
 </resources>

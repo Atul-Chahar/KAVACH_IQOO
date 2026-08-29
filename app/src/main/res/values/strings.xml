@@ -117,4 +117,12 @@
     <string name="model_status_invalid">NOT USABLE</string>
     <string name="model_setup_heading">Setup</string>
     <string name="next_family_subtitle_plural">%1$d more families would raise this to a warning</string>
+    <string name="a11y_description">Kavach reads nothing. This service exists only because Android mutes an ordinary app\'s microphone during a call, and an accessibility service is the one documented exception. No screen content, text or key press is ever read.</string>
+    <string name="a11y_summary">Lets Kavach hear a call. Reads nothing.</string>
+    <string name="tile_label">Kavach shield</string>
+    <string name="notification_channel_alert_name">Scam warnings</string>
+    <string name="notification_channel_alert_description">Shown when a call matches a known scam pattern. Bypasses Do Not Disturb.</string>
+    <string name="action_dial_1930">Call 1930</string>
+    <string name="setup_title">What Kavach can do right now</string>
+    <string name="setup_restricted_hint">Android blocks this toggle for apps installed outside an app store. Open App info, tap the three dots at the top right, and choose “Allow restricted settings”, then come back.</string>
 </resources>
