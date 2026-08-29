@@ -36,6 +36,10 @@ class AudioRingBuffer(
         samples: ShortArray,
         count: Int = samples.size,
     ) {
+        // A negative count would walk `filled` and `totalWritten` below zero,
+        // and the next snapshot() would throw NegativeArraySizeException on
+        // the capture thread. Reject it at the door.
+        require(count >= 0) { "count must not be negative: $count" }
         require(count <= samples.size) { "count exceeds input size" }
         var offset = 0
         var remaining = count

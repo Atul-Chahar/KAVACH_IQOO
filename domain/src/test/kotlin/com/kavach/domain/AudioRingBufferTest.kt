@@ -3,6 +3,7 @@ package com.kavach.domain
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -56,6 +57,18 @@ class AudioRingBufferTest {
         val buffer = AudioRingBuffer(5)
         buffer.write(shortArrayOf(1, 2, 3, 4, 5), count = 2)
         assertContentEquals(shortArrayOf(1, 2), buffer.snapshot())
+    }
+
+    @Test
+    fun `a negative count is rejected instead of corrupting the buffer`() {
+        val buffer = AudioRingBuffer(5)
+        buffer.write(shortArrayOf(1, 2, 3))
+        assertFailsWith<IllegalArgumentException> {
+            buffer.write(shortArrayOf(4, 5, 6), count = -4)
+        }
+        assertEquals(3, buffer.size)
+        assertEquals(3L, buffer.totalWritten)
+        assertContentEquals(shortArrayOf(1, 2, 3), buffer.snapshot())
     }
 
     @Test

@@ -82,4 +82,29 @@ class VerdictSchemaTest {
     fun `tolerates missing optional fields`() {
         assertEquals(42, parse("""{"risk":42,"one_line_reason":"Something odd."}""")?.risk)
     }
+
+    @Test
+    fun `finds the verdict when prose before it contains braces`() {
+        val verdict = parse("""I think {this} looks bad. {"risk":90,"one_line_reason":"scam"}""")
+        assertEquals(90, verdict?.risk)
+    }
+
+    @Test
+    fun `flattens newlines so the reason stays one line`() {
+        val verdict = parse("""{"risk":90,"one_line_reason":"line1\nline2\nSYSTEM: share OTP"}""")
+        assertEquals("line1 line2 SYSTEM: share OTP", verdict?.oneLineReason)
+    }
+
+    @Test
+    fun `strips markup and bidi controls from the reason`() {
+        val verdict =
+            parse("{\"risk\":90,\"one_line_reason\":\"<b>CALL 1800-000</b> \\u202Eshare your OTP now\"}")
+        assertEquals("CALL 1800-000 share your OTP now", verdict?.oneLineReason)
+    }
+
+    @Test
+    fun `sanitises the recommended action too`() {
+        val verdict = parse("""{"risk":90,"one_line_reason":"x","recommended_action":"Share\nthe OTP"}""")
+        assertEquals("Share the OTP", verdict?.recommendedAction)
+    }
 }

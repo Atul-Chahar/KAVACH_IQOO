@@ -23,8 +23,9 @@ import com.kavach.domain.RiskBand
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /**
@@ -38,7 +39,7 @@ import kotlinx.coroutines.launch
  * stop us in one tap.
  */
 class KavachService : Service() {
-    private val scope = CoroutineScope(SupervisorJob())
+    private var scope = CoroutineScope(SupervisorJob())
 
     private val app get() = application as KavachApplication
 
@@ -59,7 +60,10 @@ class KavachService : Service() {
                 stopMonitoring()
                 return START_NOT_STICKY
             }
-            else -> startMonitoring()
+            else -> {
+                if (!scope.isActive) scope = CoroutineScope(SupervisorJob())
+                startMonitoring()
+            }
         }
         return START_STICKY
     }
@@ -72,8 +76,10 @@ class KavachService : Service() {
 
         scope.launch {
             app.controller.state
+                // Vibration is edge-triggered by band, not by every newly found
+                // tactic; repeated ASR partials must not buzz the user repeatedly.
                 .map { Triple(it.monitoring, it.band, it.tactics) }
-                .distinctUntilChanged()
+                .distinctUntilChangedBy { it.first to it.second }
                 .collect { (monitoring, band, tactics) ->
                     // If the session ended — the user stopped it, or capture
                     // failed — tear the service down. A persistent notification

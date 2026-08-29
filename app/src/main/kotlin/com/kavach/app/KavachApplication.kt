@@ -2,12 +2,21 @@ package com.kavach.app
 
 import android.app.Application
 import android.util.Log
+import com.kavach.app.inference.GemmaLlmAdjudicator
 import com.kavach.app.inference.SystemAsrTranscriptSource
 import com.kavach.app.model.ModelRepository
 import com.kavach.app.monitor.ShieldController
 import com.kavach.demo.FixtureTranscriptSource
+import com.kavach.domain.ModelCatalog
 import com.kavach.domain.TacticLexicon
 import com.kavach.domain.TranscriptSource
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+import java.io.File
 import java.util.Locale
 
 /**
@@ -27,9 +36,41 @@ class KavachApplication : Application() {
         ModelRepository(this).also { it.refresh() }
     }
 
+    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
     val controller: ShieldController by lazy {
         ShieldController(lexicon, hindi = Locale.getDefault().language == "hi")
     }
+
+    private var activeAdjudicator: GemmaLlmAdjudicator? = null
+
+    override fun onCreate() {
+        super.onCreate()
+        applicationScope.launch {
+            models.state.collectLatest { state ->
+                val ready = state as? com.kavach.domain.ModelState.Ready
+                val replacement =
+                    ready?.let { modelReady ->
+                        ModelCatalog.byId(modelReady.specId)?.let { spec ->
+                            fileFor(spec).takeIf { it.isFile && it.length() == spec.sizeBytes }?.let { file ->
+                                GemmaLlmAdjudicator(file, cacheDir)
+                            }
+                        }
+                    }
+                activeAdjudicator?.close()
+                activeAdjudicator = replacement
+                controller.adjudicator = replacement
+            }
+        }
+    }
+
+    override fun onTerminate() {
+        activeAdjudicator?.close()
+        applicationScope.cancel()
+        super.onTerminate()
+    }
+
+    private fun fileFor(spec: com.kavach.domain.ModelSpec): File = models.fileFor(spec)
 
     /**
      * The live pipeline. Today this is the on-device system recogniser; when the

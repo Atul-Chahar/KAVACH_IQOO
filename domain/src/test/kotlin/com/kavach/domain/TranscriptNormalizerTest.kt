@@ -23,4 +23,20 @@ class TranscriptNormalizerTest {
     fun `handles empty input`() {
         assertEquals("", TranscriptNormalizer.normalize("   "))
     }
+
+    @Test
+    fun `em and en dashes become word breaks`() {
+        assertEquals("digital arrest", TranscriptNormalizer.normalize("digital—arrest"))
+        assertEquals("digital arrest", TranscriptNormalizer.normalize("digital–arrest"))
+    }
+
+    @Test
+    fun `devanagari digits map to ascii`() {
+        assertEquals("2 घंटे के अंदर", TranscriptNormalizer.normalize("२ घंटे के अंदर"))
+    }
+
+    @Test
+    fun `non breaking spaces collapse like normal spaces`() {
+        assertEquals("digital arrest", TranscriptNormalizer.normalize("digital arrest"))
+    }
 }

@@ -1,13 +1,14 @@
 [versions]
 agp = "8.7.3"
-kotlin = "2.0.21"
+kotlin = "2.2.21"
 coreKtx = "1.15.0"
 lifecycle = "2.8.7"
 activityCompose = "1.9.3"
 composeBom = "2024.12.01"
 coroutines = "1.9.0"
-serialization = "1.7.3"
+serialization = "1.9.0"
 junit5 = "5.11.3"
+litertLm = "0.16.1"
 ktlint = "12.1.2"
 detekt = "1.23.7"
 
@@ -29,6 +30,7 @@ kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-cor
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
 junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter", version.ref = "junit5" }
 junit-platform-launcher = { group = "org.junit.platform", name = "junit-platform-launcher" }
+litertlm-android = { group = "com.google.ai.edge.litertlm", name = "litertlm-android", version.ref = "litertLm" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

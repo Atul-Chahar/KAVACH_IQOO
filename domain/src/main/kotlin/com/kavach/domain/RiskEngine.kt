@@ -11,7 +11,9 @@ class RiskEngine(
     private val aggregator: SignalAggregator = SignalAggregator(lexicon),
 ) {
     private val signals = mutableListOf<Signal>()
-    private val seenSpans = mutableSetOf<String>()
+
+    /** Span key → timestamp of the signal it dedupes. Expires with the decay horizon. */
+    private val seenSpans = mutableMapOf<String, Long>()
 
     /**
      * Feeds one window and returns the updated assessment.
@@ -27,7 +29,7 @@ class RiskEngine(
     ): RiskAssessment {
         matcher.match(window).forEach { signal ->
             val key = "${signal.family}|${signal.evidenceSpan}"
-            if (seenSpans.add(key)) signals += signal
+            if (seenSpans.putIfAbsent(key, signal.timestampMs) == null) signals += signal
         }
         prune(nowMs)
         return aggregator.assess(signals, nowMs)
@@ -40,10 +42,13 @@ class RiskEngine(
      * Merges a Tier-2 verdict. The displayed score is `max(tier1, tier2)` when
      * Tier 2 is valid and `tier1` otherwise (docs/ARCHITECTURE.md 3).
      *
-     * The band is still governed by the Tier-1 family-diversity rule: the model
-     * may raise the number, but it may not manufacture a HIGH_RISK state that
-     * the deterministic engine cannot justify. That keeps every alert
-     * explainable by something we can point at.
+     * Two invariants survive the merge, both inherited from the deterministic
+     * engine. The band never widens: the model may raise the number, but it may
+     * not manufacture a HIGH_RISK state the family-diversity rule cannot
+     * justify. And the number never outruns the band: a merged score is capped
+     * at the threshold its band can justify, because "CAUTION (100/100)" is a
+     * contradiction printed on the card. Every alert stays explainable by
+     * something we can point at.
      */
     fun merge(
         tier1: RiskAssessment,
@@ -51,8 +56,14 @@ class RiskEngine(
     ): RiskAssessment {
         if (verdict == null || verdict.risk <= tier1.score) return tier1
         if (tier1.band == RiskBand.WATCHING) return tier1
+        val ceiling =
+            if (tier1.band == RiskBand.HIGH_RISK) {
+                RiskAssessment.MAX_SCORE
+            } else {
+                lexicon.scoring.highRiskThreshold - 1
+            }
         return tier1.copy(
-            score = maxOf(tier1.score, verdict.risk),
+            score = minOf(maxOf(tier1.score, verdict.risk), ceiling),
             tier2Reason = verdict.oneLineReason,
         )
     }
@@ -62,10 +73,17 @@ class RiskEngine(
         seenSpans.clear()
     }
 
-    /** Drops signals decayed into irrelevance, so a long session cannot grow without bound. */
+    /**
+     * Drops signals decayed into irrelevance, so a long session cannot grow
+     * without bound. The dedup map expires in lockstep: ASR partials re-send a
+     * span within seconds and stay deduped, but a scammer repeating the script
+     * after the horizon is making a new utterance, and it must score again.
+     * Keys that outlived their signals made a repeated script score zero.
+     */
     private fun prune(nowMs: Long) {
         val horizonMs = lexicon.scoring.decayHalfLifeSeconds * MILLIS_PER_SECOND * DECAY_HORIZON_HALF_LIVES
         signals.removeAll { nowMs - it.timestampMs > horizonMs }
+        seenSpans.entries.removeAll { nowMs - it.value > horizonMs }
     }
 
     private companion object {

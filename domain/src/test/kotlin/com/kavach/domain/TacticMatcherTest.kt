@@ -110,6 +110,43 @@ class TacticMatcherTest {
     }
 
     @Test
+    fun `recognises KYC expiry and account closure pressure`() {
+        assertTrue(
+            familiesIn("Aapka KYC expire ho gaya hai, KYC update kijiye warna account band ho jayega")
+                .contains("URGENCY_AND_THREAT"),
+        )
+    }
+
+    @Test
+    fun `recognises electricity disconnection pressure`() {
+        assertTrue(
+            "URGENCY_AND_THREAT" in
+                familiesIn("Aapka bijli bill pending hai, aaj raat connection kat jayega"),
+        )
+    }
+
+    @Test
+    fun `recognises OLX advance payment and QR instructions`() {
+        assertTrue(
+            "REMOTE_ACCESS_AND_TRANSFER" in
+                familiesIn("Main army se hoon, CSD canteen se posting hai, advance payment kijiye QR code scan karke"),
+        )
+    }
+
+    @Test
+    fun `recognises lottery prize and processing fee language`() {
+        assertTrue(
+            "REMOTE_ACCESS_AND_TRANSFER" in
+                familiesIn("Aapko KBC lottery mein pachees lakh ka inaam mila hai, processing fee bhariye"),
+        )
+    }
+
+    @Test
+    fun `remote access aliases spaced AnyDesk`() {
+        assertTrue("REMOTE_ACCESS_AND_TRANSFER" in familiesIn("Please install Any-Desk right now"))
+    }
+
+    @Test
     fun `empty transcript yields nothing`() {
         assertTrue(matcher.match(TranscriptWindow("   ", 0, 1000)).isEmpty())
     }

@@ -88,12 +88,19 @@
         { "t": "you will be arrested",         "w": 25 },
         { "t": "आप गिरफ्तार हो जाएंगे",           "w": 25 },
         { "t": "aap giraftar ho jayenge",      "w": 25 },
+        { "t": "kyc expire ho gaya",            "w": 20 },
+        { "t": "kyc update kijiye",             "w": 18 },
+        { "t": "account band ho jayega",        "w": 20 },
+        { "t": "आपका केवाईसी समाप्त",              "w": 20 },
         { "t": "non bailable",                 "w": 22 },
         { "t": "gair zamanti",                 "w": 22 },
         { "t": "immediate action",             "w": 12 },
         { "t": "turant",                       "w": 10 },
         { "t": "last warning",                 "w": 18 },
         { "t": "aakhri chetavni",              "w": 18 },
+        { "t": "connection kat jayega",         "w": 22 },
+        { "t": "bijli bill pending",            "w": 18 },
+        { "t": "aaj raat connection",           "w": 20 },
         { "t": "legal action will be taken",   "w": 16 },
         { "t": "court summon",                 "w": 18 }
       ]
@@ -132,6 +139,7 @@
       "baseWeight": 28,
       "markers": [
         { "t": "anydesk",                      "w": 32 },
+        { "t": "any desk",                     "w": 32 },
         { "t": "teamviewer",                   "w": 32 },
         { "t": "quick support",                "w": 26 },
         { "t": "rustdesk",                     "w": 30 },
@@ -150,7 +158,14 @@
         { "t": "neft kar dijiye",              "w": 24 },
         { "t": "safe custody account",         "w": 32 },
         { "t": "सेफ कस्टडी",                     "w": 32 },
-        { "t": "government verified account",  "w": 30 }
+        { "t": "government verified account",  "w": 30 },
+        { "t": "advance payment",               "w": 28 },
+        { "t": "advance paise",                 "w": 28 },
+        { "t": "qr code scan karke",             "w": 28 },
+        { "t": "processing fee",                "w": 28 },
+        { "t": "lottery mein inaam",            "w": 28 },
+        { "t": "kbc lottery",                   "w": 28 },
+        { "t": "pachees lakh ka inaam",          "w": 28 }
       ]
     }
   ],

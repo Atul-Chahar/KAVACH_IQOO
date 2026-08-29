@@ -70,4 +70,60 @@ class RiskEngineTest {
         assertEquals(RiskBand.WATCHING, merged.band)
         assertNull(merged.tier2Reason)
     }
+
+    @Test
+    fun `tier 2 cannot display a score its band cannot justify`() {
+        val engine = engine()
+        // Two families fire → CAUTION; HIGH_RISK needs three.
+        val tier1 =
+            engine.onTranscript(
+                TranscriptWindow("Main CBI se bol raha hoon, kisi ko mat bataiye", 0, 5_000),
+            )
+        assertEquals(RiskBand.CAUTION, tier1.band)
+
+        val merged = engine.merge(tier1, Verdict(risk = 100, oneLineReason = "Definitely a scam."))
+        assertEquals(RiskBand.CAUTION, merged.band, "the band must not widen")
+        assertTrue(
+            merged.score < TestFixtures.lexicon.scoring.highRiskThreshold,
+            "score ${merged.score} must stay under the threshold only HIGH_RISK may display",
+        )
+        assertEquals("Definitely a scam.", merged.tier2Reason)
+    }
+
+    @Test
+    fun `tier 2 can raise the score inside a high risk band`() {
+        val engine = engine()
+        val tier1 =
+            engine.onTranscript(
+                TranscriptWindow(
+                    "Main CBI se bol raha hoon, kisi ko mat bataiye, anydesk download kijiye, OTP bataiye",
+                    0,
+                    5_000,
+                ),
+            )
+        assertEquals(RiskBand.HIGH_RISK, tier1.band)
+
+        val merged = engine.merge(tier1, Verdict(risk = 100, oneLineReason = "Full fraud script."))
+        assertEquals(100, merged.score)
+        assertEquals(RiskBand.HIGH_RISK, merged.band)
+    }
+
+    @Test
+    fun `a script repeated after the decay horizon scores again`() {
+        val engine = engine()
+        val script = "Main CBI se bol raha hoon, OTP bataiye, anydesk download kijiye"
+        val first = engine.onTranscript(TranscriptWindow(script, 0, 5_000))
+        assertTrue(first.score > 0)
+
+        // Half-life 120 s × 8 half-lives = 16 minutes. Past that, the signals
+        // have decayed out entirely.
+        val muchLater = 20 * 60 * 1000L
+        val quiet = engine.onTranscript(TranscriptWindow("aap kaise ho", muchLater, muchLater + 5_000))
+        assertEquals(0, quiet.score)
+
+        // A repeat is a new utterance, not an ASR partial, so it must re-score.
+        val repeat =
+            engine.onTranscript(TranscriptWindow(script, muchLater + 5_000, muchLater + 10_000))
+        assertEquals(first.score, repeat.score, "a repeated script must not score zero")
+    }
 }
