@@ -196,6 +196,7 @@ private fun CaptureReadout(capture: CaptureState) {
         ReadoutLine("Silenced by Android", if (capture.silenced) "YES" else "no")
         ReadoutLine("Level", if (capture.rmsDb.isFinite()) "${capture.rmsDb.toInt()} dBFS" else "digital silence")
         ReadoutLine("Frames / with sound", "${capture.framesRead} / ${capture.nonSilentFrames}")
+        ReadoutLine("Language", capture.language)
         ReadoutLine("Transcripts", capture.transcripts.toString())
         capture.captureError?.let { ReadoutLine("Error", it) }
     }

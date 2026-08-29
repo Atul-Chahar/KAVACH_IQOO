@@ -39,6 +39,8 @@ class CaptureDiagnostics {
 
     fun onTranscript() = _state.update { it.copy(transcripts = it.transcripts + 1) }
 
+    fun onLanguage(tag: String?) = _state.update { it.copy(language = tag ?: "device default") }
+
     fun onCaptureError(message: String?) = _state.update { it.copy(captureError = message) }
 
     fun reset() = _state.update { CaptureState(audioMode = it.audioMode) }
@@ -69,6 +71,8 @@ data class CaptureState(
     val framesRead: Long = 0,
     val nonSilentFrames: Long = 0,
     val transcripts: Int = 0,
+    /** Which language the recogniser actually accepted — not the one we asked for. */
+    val language: String = "—",
     val captureError: String? = null,
 ) {
     /** True once we have read enough to be sure the stream is digital silence, not a quiet room. */
