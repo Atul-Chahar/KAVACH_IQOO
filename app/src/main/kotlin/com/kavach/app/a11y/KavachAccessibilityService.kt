@@ -1,13 +1,19 @@
 package com.kavach.app.a11y
 
 import android.accessibilityservice.AccessibilityService
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.provider.Settings
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
+import androidx.core.app.NotificationCompat
 import com.kavach.app.KavachApplication
+import com.kavach.app.R
 import com.kavach.app.capture.CallWatcher
+import com.kavach.app.capture.KavachNotifications
 import com.kavach.app.ui.ShieldOverlayActivity
 
 /**
@@ -64,7 +70,7 @@ class KavachAccessibilityService : AccessibilityService() {
     }
 
     /**
-     * A call started. Bring the shield up.
+     * A call started (or is ringing). Bring the shield up.
      *
      * Starting an activity from the background is normally forbidden, but holding
      * `SYSTEM_ALERT_WINDOW` is a documented exemption — the same one Truecaller-style
@@ -72,10 +78,16 @@ class KavachAccessibilityService : AccessibilityService() {
      * which legalises the microphone foreground service *and* satisfies the
      * accessibility exemption's "UI on top" condition. The two constraints solve
      * each other; neither is worked around.
+     *
+     * [CallWatcher] fires this at RINGING *and* again at IN_CALL: the in-call UI
+     * takes the foreground when the user answers and covers the shield, so the
+     * second callback re-raises it. [ShieldOverlayActivity] is singleTask, so a
+     * re-launch delivers onNewIntent instead of stacking a second instance.
      */
     private fun onCallStarted() {
         if (!Settings.canDrawOverlays(this)) {
             Log.w(TAG, "call started but overlay permission is missing; cannot raise the shield")
+            notifyRaiseBlocked()
             return
         }
         runCatching { ShieldOverlayActivity.launch(this) }
@@ -84,6 +96,37 @@ class KavachAccessibilityService : AccessibilityService() {
 
     private fun onCallEnded() {
         ShieldOverlayActivity.dismiss(this)
+    }
+
+    /**
+     * The one case where auto-activation is impossible and the user would never
+     * know: no overlay grant, so the shield cannot legally appear and the call
+     * proceeds unmonitored. A silent no would be the worst outcome — the user
+     * believes they are protected. One heads-up notification, tap to fix.
+     */
+    private fun notifyRaiseBlocked() {
+        KavachNotifications.ensureChannels(this)
+        val open =
+            PendingIntent.getActivity(
+                this,
+                0,
+                Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+            )
+        val notification =
+            NotificationCompat
+                .Builder(this, KavachNotifications.CHANNEL_ALERT)
+                .setSmallIcon(R.drawable.ic_shield)
+                .setContentTitle(getString(R.string.raise_blocked_title))
+                .setContentText(getString(R.string.raise_blocked_body))
+                .setStyle(NotificationCompat.BigTextStyle().bigText(getString(R.string.raise_blocked_body)))
+                .setContentIntent(open)
+                .setAutoCancel(true)
+                .setCategory(NotificationCompat.CATEGORY_CALL)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .build()
+        getSystemService(NotificationManager::class.java)
+            ?.notify(KavachNotifications.RAISE_ID, notification)
     }
 
     companion object {

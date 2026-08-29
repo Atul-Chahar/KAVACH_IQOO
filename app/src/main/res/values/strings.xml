@@ -127,4 +127,12 @@
     <string name="setup_restricted_hint">Android blocks this toggle for apps installed outside an app store. Open App info, tap the three dots at the top right, and choose “Allow restricted settings”, then come back.</string>
     <string name="state_noticed_title">Something came up</string>
     <string name="state_noticed_body">Kavach has heard %1$d kind of scam tactic. A warning needs %2$d different kinds, so it is watching for more.</string>
+    <string name="verdict_safe_title">Call was safe</string>
+    <string name="verdict_safe_body">Kavach heard no scam-pattern match in that call (score %1$d of 100).</string>
+    <string name="verdict_caution_title">Be careful — something came up</string>
+    <string name="verdict_caution_body">Some scam-tactic signals appeared in that call (score %1$d of 100). No action needed; just stay sharp.</string>
+    <string name="verdict_high_risk_title">That call looked like a scam script</string>
+    <string name="verdict_high_risk_body">That call matched a known scam pattern (score %1$d of 100). If you shared an OTP, PIN or money, report it now on 1930.</string>
+    <string name="raise_blocked_title">Kavach could not watch that call</string>
+    <string name="raise_blocked_body">Display-over-apps permission is off, so the shield could not appear for the incoming call. Tap to allow it, and the next call is watched automatically.</string>
 </resources>
