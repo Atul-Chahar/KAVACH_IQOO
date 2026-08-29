@@ -75,6 +75,52 @@ class FixtureCorpusTest {
         )
     }
 
+    /**
+     * How long a positive takes to escalate, not merely whether it does.
+     *
+     * A verdict that arrives on the last line of the script is a verdict that
+     * arrives after the money has moved. This asserts a budget in seconds of
+     * speech, so a lexicon change that makes detection slower fails here rather
+     * than being discovered on stage.
+     */
+    @Test
+    fun `positives escalate early enough to matter`() {
+        println()
+        println("=== Escalation latency (seconds of speech) ===")
+
+        val late = mutableListOf<String>()
+        TestFixtures.fixtures().filter { it.isPositive }.forEach { fixture ->
+            val trace = TestFixtures.trace(fixture)
+            val caution = trace.indexOfFirst { it.score >= scoring.cautionThreshold }
+            val high = trace.indexOfFirst { it.band == RiskBand.HIGH_RISK }
+
+            println(
+                "  %-34s caution=%s  high_risk=%s  (of %d lines)".format(
+                    fixture.name,
+                    seconds(caution),
+                    seconds(high),
+                    trace.size,
+                ),
+            )
+
+            if (caution < 0 || caution * TestFixtures.SECONDS_PER_LINE > CAUTION_BUDGET_SECONDS) {
+                late += "${fixture.name} reached CAUTION at ${seconds(caution)}"
+            }
+            if (high < 0 || high * TestFixtures.SECONDS_PER_LINE > HIGH_RISK_BUDGET_SECONDS) {
+                late += "${fixture.name} reached HIGH_RISK at ${seconds(high)}"
+            }
+        }
+        println()
+        println("  budget: CAUTION <= ${CAUTION_BUDGET_SECONDS}s, HIGH_RISK <= ${HIGH_RISK_BUDGET_SECONDS}s")
+        println()
+
+        assertTrue(late.isEmpty(), "escalation too slow to be useful: $late")
+    }
+
+    /** Line index to a readable elapsed time, or "never". */
+    private fun seconds(lineIndex: Int): String =
+        if (lineIndex < 0) "never" else "${lineIndex * TestFixtures.SECONDS_PER_LINE}s"
+
     @Test
     fun `high risk always names at least three distinct families`() {
         TestFixtures
@@ -93,5 +139,20 @@ class FixtureCorpusTest {
         const val PERCENT = 100
         const val HIGH_RISK_TARGET_PERCENT = 80
         const val CAUTION_TOLERANCE_PERCENT = 30
+
+        /**
+         * Escalation budgets, in seconds of speech.
+         *
+         * These are the honest floor for this corpus, not an aspiration. The
+         * binding case is `otp-phish-01`, which cannot legitimately go amber
+         * before 36 s: until the caller asks for the OTP it is saying the same
+         * things, in the same order, as the *legitimate* bank desk in
+         * `real-bank-desk-devanagari-01` — both plateau at ~35. Escalating
+         * earlier would mean alarming on a real bank call, so the engine is
+         * right to wait, and a budget that forced it lower would be a bug
+         * dressed as a target.
+         */
+        const val CAUTION_BUDGET_SECONDS = 36L
+        const val HIGH_RISK_BUDGET_SECONDS = 42L
     }
 }

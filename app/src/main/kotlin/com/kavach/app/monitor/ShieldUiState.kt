@@ -43,10 +43,27 @@ data class ShieldUiState(
     val lexiconVersion: String = "",
     /** How many distinct families a warning needs. The UI explains this rule. */
     val familiesForWarning: Int = 0,
+    /**
+     * The score at which the band turns amber, read from the lexicon rather than
+     * restated in the UI. The live risk track draws its ticks here, so a screen
+     * can never disagree with the scorer about where the lines are.
+     */
+    val cautionThreshold: Int = 0,
+    /** The score a warning needs, on top of the family-diversity rule. */
+    val highRiskThreshold: Int = 0,
     val elapsedMs: Long = 0,
     val transcriptPreview: String = "",
-    /** Whether the user asked to see the words. Off by default, never persisted. */
-    val showTranscript: Boolean = false,
+    /**
+     * Whether the words Kavach matched on are shown.
+     *
+     * On by default. It was off, on the reasoning that showing speech is a
+     * privacy decision the user should opt into — but the preview never leaves
+     * memory and is never written anywhere, so the thing being protected was
+     * already safe, while the cost was real: with it off there is no way to tell
+     * a working recogniser from a deaf one until the score happens to move. The
+     * user can still switch it off, and it is still never persisted.
+     */
+    val showTranscript: Boolean = true,
     val engineName: String = "",
     /** Set when a model is missing. The app still works; the user is told plainly. */
     val degradedReason: String? = null,

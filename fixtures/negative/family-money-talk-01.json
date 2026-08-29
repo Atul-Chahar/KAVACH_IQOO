@@ -1,0 +1,50 @@
+[
+  {
+    "speaker": "SON",
+    "text": "Papa, maine aapke account mein paise transfer kar diye hain, pachas hazar.",
+    "startMs": 0,
+    "endMs": 6024
+  },
+  {
+    "speaker": "FATHER",
+    "text": "Kab kiye?",
+    "startMs": 6624,
+    "endMs": 8400
+  },
+  {
+    "speaker": "SON",
+    "text": "Abhi thodi der pehle. NEFT kar diya hai, kal tak aa jayenge.",
+    "startMs": 9000,
+    "endMs": 15048
+  },
+  {
+    "speaker": "FATHER",
+    "text": "Theek hai. Mujhe hospital ka payment karna hai parso tak, urgent hai.",
+    "startMs": 15648,
+    "endMs": 21960
+  },
+  {
+    "speaker": "SON",
+    "text": "Ho jayega. Aur papa, agar koi call aaye bank se bolke aur OTP maange to mat batana, aaj kal bahut scam ho rahe hain.",
+    "startMs": 22560,
+    "endMs": 33168
+  },
+  {
+    "speaker": "FATHER",
+    "text": "Haan mujhe pata hai, news mein dekha tha. Digital arrest wala.",
+    "startMs": 33768,
+    "endMs": 39696
+  },
+  {
+    "speaker": "SON",
+    "text": "Bilkul. Koi bhi asli bank kabhi OTP nahi maangta.",
+    "startMs": 40296,
+    "endMs": 46032
+  },
+  {
+    "speaker": "FATHER",
+    "text": "Theek hai beta.",
+    "startMs": 46632,
+    "endMs": 48672
+  }
+]

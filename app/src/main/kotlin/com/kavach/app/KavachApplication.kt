@@ -3,6 +3,7 @@ package com.kavach.app
 import android.app.Application
 import android.util.Log
 import com.kavach.app.capture.CaptureDiagnostics
+import com.kavach.app.capture.KavachNotifications
 import com.kavach.app.inference.GemmaLlmAdjudicator
 import com.kavach.app.inference.PipedAsrTranscriptSource
 import com.kavach.app.inference.SystemAsrTranscriptSource
@@ -64,6 +65,13 @@ class KavachApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // Here rather than in KavachService.onCreate, because channel creation
+        // is also channel *migration* — retired ids are deleted in the same
+        // call — and the service only starts once a session does. A user who
+        // installs an update and does not immediately start monitoring would
+        // otherwise keep the previous build's channel settings indefinitely.
+        KavachNotifications.ensureChannels(this)
+
         applicationScope.launch {
             models.state.collectLatest { state ->
                 val ready = state as? com.kavach.domain.ModelState.Ready
@@ -71,7 +79,7 @@ class KavachApplication : Application() {
                     ready?.let { modelReady ->
                         ModelCatalog.byId(modelReady.specId)?.let { spec ->
                             fileFor(spec).takeIf { it.isFile && it.length() == spec.sizeBytes }?.let { file ->
-                                GemmaLlmAdjudicator(file, cacheDir)
+                                GemmaLlmAdjudicator(file, cacheDir, lexicon.families.map { it.id })
                             }
                         }
                     }

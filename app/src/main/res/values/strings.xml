@@ -99,6 +99,11 @@
     <string name="show_words_label">Show the words Kavach heard</string>
     <string name="show_words_note">On this phone only. Never saved.</string>
     <string name="heard_not_saved">Heard, not saved: “%1$s”</string>
+    <string name="live_risk_label">Live risk</string>
+    <string name="risk_thresholds">Caution at %1$d · Warning at %2$d</string>
+    <string name="heard_label">Heard just now</string>
+    <string name="hearing_yes">Hearing the room</string>
+    <string name="hearing_no">No sound reaching Kavach</string>
     <string name="action_not_a_scam">Not a scam</string>
     <string name="action_stop_listening">Stop listening</string>
     <string name="tactic_caption">%1$s · %2$s</string>
@@ -135,4 +140,9 @@
     <string name="verdict_high_risk_body">That call matched a known scam pattern (score %1$d of 100). If you shared an OTP, PIN or money, report it now on 1930.</string>
     <string name="raise_blocked_title">Kavach could not watch that call</string>
     <string name="raise_blocked_body">Display-over-apps permission is off, so the shield could not appear for the incoming call. Tap to allow it, and the next call is watched automatically.</string>
+    <string name="notification_subtext">KAVACH LIVE</string>
+    <string name="action_slide_to_dial_1930">Slide to call 1930</string>
+    <string name="demo_simulation_note">This is a replayed example. Nothing was really detected, and no one has been alerted.</string>
+    <string name="home_status_ready">Fully armed</string>
+    <string name="home_status_partial">Partly armed — tap to fix</string>
 </resources>

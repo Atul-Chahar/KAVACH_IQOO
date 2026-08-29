@@ -1,9 +1,11 @@
 package com.kavach.app.ui
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,21 +22,34 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 /**
  * The Kavach mark: one shield printed three times, slightly out of register.
@@ -112,6 +127,119 @@ fun PillButton(
         )
     }
 }
+
+/**
+ * A control you have to mean.
+ *
+ * The alert card's two actions used to be ordinary taps, and the person reading
+ * that card is the worst possible candidate for an ordinary tap: elderly,
+ * frightened, being actively talked at, holding the phone against their face.
+ * A mis-tap on "I'm fine" silences the only warning they are going to get.
+ *
+ * Dragging cannot happen by accident. The thumb travels the full width, snaps
+ * back if released before [COMMIT_FRACTION], and only then fires. The gesture
+ * costs a deliberate half-second, which is the point.
+ *
+ * It is still one tap for TalkBack: the semantics below expose a plain button
+ * action, because "drag precisely" is not an instruction a screen-reader user
+ * should have to follow to dismiss an alarm.
+ */
+@Composable
+fun SlideToConfirm(
+    label: String,
+    icon: PhosphorIcon,
+    track: Color,
+    thumb: Color,
+    onThumb: Color,
+    ink: Color,
+    onConfirm: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val scope = rememberCoroutineScope()
+    val offset = remember { Animatable(0f) }
+    var trackWidth by remember { mutableIntStateOf(0) }
+    var committed by remember { mutableStateOf(false) }
+
+    val thumbPx = with(LocalDensity.current) { (SLIDE_THUMB - SLIDE_INSET).toPx() }
+    val travel = (trackWidth - thumbPx - with(LocalDensity.current) { SLIDE_INSET.toPx() }).coerceAtLeast(1f)
+    val shape = RoundedCornerShape(SLIDE_HEIGHT / 2)
+
+    // The label fades out as the thumb crosses it, so the control never shows
+    // its instruction and its thumb fighting for the same pixels.
+    val progress = (offset.value / travel).coerceIn(0f, 1f)
+
+    Box(
+        modifier
+            .height(SLIDE_HEIGHT)
+            .clip(shape)
+            .background(track, shape)
+            .onSizeChanged { trackWidth = it.width }
+            .semantics(mergeDescendants = true) {
+                role = Role.Button
+                contentDescription = label
+                onClick(label) {
+                    onConfirm()
+                    true
+                }
+            },
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = ink.copy(alpha = (1f - progress * LABEL_FADE_RATE).coerceIn(0f, 1f)),
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth().padding(start = SLIDE_THUMB, end = 12.dp),
+        )
+
+        Box(
+            Modifier
+                .offset { IntOffset(offset.value.roundToInt(), 0) }
+                .padding(SLIDE_INSET)
+                .size(SLIDE_THUMB - SLIDE_INSET * 2)
+                .clip(RoundedCornerShape(KavachTokens.RadiusCard))
+                .background(thumb)
+                .pointerInput(travel) {
+                    detectHorizontalDragGestures(
+                        onDragEnd = {
+                            if (committed) return@detectHorizontalDragGestures
+                            if (offset.value >= travel * COMMIT_FRACTION) {
+                                committed = true
+                                scope.launch {
+                                    offset.animateTo(travel)
+                                    onConfirm()
+                                }
+                            } else {
+                                scope.launch { offset.animateTo(0f) }
+                            }
+                        },
+                        onDragCancel = { scope.launch { offset.animateTo(0f) } },
+                    ) { change, dragAmount ->
+                        change.consume()
+                        if (committed) return@detectHorizontalDragGestures
+                        scope.launch {
+                            offset.snapTo((offset.value + dragAmount).coerceIn(0f, travel))
+                        }
+                    }
+                },
+            contentAlignment = Alignment.Center,
+        ) {
+            PhosphorGlyph(icon, 22.dp, onThumb)
+        }
+    }
+}
+
+/** Track height, thumb size and inset, matched to the 56dp PillButton rhythm. */
+private val SLIDE_HEIGHT = 64.dp
+private val SLIDE_THUMB = 64.dp
+private val SLIDE_INSET = 5.dp
+
+/** How far across the thumb must travel before the action counts as meant. */
+private const val COMMIT_FRACTION = 0.72f
+
+/** The label is gone by the time the thumb is two-thirds of the way over it. */
+private const val LABEL_FADE_RATE = 1.6f
 
 /**
  * The five-segment family meter.

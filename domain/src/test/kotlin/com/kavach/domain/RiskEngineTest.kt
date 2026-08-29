@@ -62,6 +62,52 @@ class RiskEngineTest {
     }
 
     @Test
+    fun `tier 2 can raise a caution the lexicon had no word for`() {
+        val engine = engine()
+        val tier1 = engine.onTranscript(TranscriptWindow("Nice weather today", 0, 5_000))
+        assertEquals(RiskBand.WATCHING, tier1.band)
+
+        val merged =
+            engine.merge(
+                tier1,
+                Verdict(
+                    risk = 90,
+                    tactics = listOf("CREDENTIAL_EXTRACTION"),
+                    oneLineReason = "Caller is walking the listener through a bank transfer.",
+                ),
+            )
+
+        assertEquals(RiskBand.CAUTION, merged.band, "the model must be able to speak first")
+        assertEquals(listOf("CREDENTIAL_EXTRACTION"), merged.matchedFamilies)
+        assertTrue(
+            merged.score < TestFixtures.lexicon.scoring.highRiskThreshold,
+            "an escalation the engine cannot corroborate must stay under HIGH_RISK",
+        )
+    }
+
+    @Test
+    fun `tier 2 alone can never reach high risk`() {
+        val engine = engine()
+        val tier1 = engine.onTranscript(TranscriptWindow("Nice weather today", 0, 5_000))
+        val merged =
+            engine.merge(
+                tier1,
+                Verdict(risk = 100, tactics = listOf("AUTHORITY_IMPERSONATION"), oneLineReason = "Certain scam."),
+            )
+        assertEquals(RiskBand.CAUTION, merged.band, "HIGH_RISK still needs the family-diversity rule")
+    }
+
+    @Test
+    fun `a quiet tier 2 verdict leaves a silent conversation alone`() {
+        val engine = engine()
+        val tier1 = engine.onTranscript(TranscriptWindow("Nice weather today", 0, 5_000))
+        val merged =
+            engine.merge(tier1, Verdict(risk = 10, tactics = listOf("URGENCY_AND_THREAT"), oneLineReason = "Fine."))
+        assertEquals(RiskBand.WATCHING, merged.band)
+        assertNull(merged.tier2Reason)
+    }
+
+    @Test
     fun `tier 2 cannot manufacture an alert the deterministic engine cannot justify`() {
         val engine = engine()
         val tier1 = engine.onTranscript(TranscriptWindow("Nice weather today", 0, 5_000))

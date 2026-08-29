@@ -54,8 +54,9 @@ class RiskEngine(
         tier1: RiskAssessment,
         verdict: Verdict?,
     ): RiskAssessment {
-        if (verdict == null || verdict.risk <= tier1.score) return tier1
-        if (tier1.band == RiskBand.WATCHING) return tier1
+        if (verdict == null) return tier1
+        if (tier1.band == RiskBand.WATCHING) return escalateFromWatching(tier1, verdict)
+        if (verdict.risk <= tier1.score) return tier1
         val ceiling =
             if (tier1.band == RiskBand.HIGH_RISK) {
                 RiskAssessment.MAX_SCORE
@@ -64,6 +65,41 @@ class RiskEngine(
             }
         return tier1.copy(
             score = minOf(maxOf(tier1.score, verdict.risk), ceiling),
+            tier2Reason = verdict.oneLineReason,
+        )
+    }
+
+    /**
+     * The one case where Tier 2 speaks first: the markers matched nothing, and
+     * the model says the conversation is a scam anyway.
+     *
+     * Previously this returned [tier1] unconditionally, which meant a verdict of
+     * 100 on a conversation the lexicon had no word for was thrown away. Since
+     * the lexicon is 109 fixed phrases, that made the model decorative — it could
+     * only ever agree with a decision already taken.
+     *
+     * It may lift WATCHING to CAUTION and no further. HIGH_RISK still requires
+     * [TacticLexicon.Scoring.minDistinctFamiliesForHighRisk] distinct families
+     * from the deterministic engine, so the loudest state stays something we can
+     * point at rather than something a model asserted.
+     *
+     * The model must also name the families it saw. That is not politeness: an
+     * alerting [RiskAssessment] is required to carry them (docs/SAFETY.md 4), so
+     * a verdict with no tactics is one we cannot explain to a frightened person,
+     * and we decline it rather than show an unfalsifiable number. Those ids were
+     * already filtered against the lexicon in `VerdictSchema.parseOrNull`, so
+     * nothing invented can reach this point.
+     */
+    private fun escalateFromWatching(
+        tier1: RiskAssessment,
+        verdict: Verdict,
+    ): RiskAssessment {
+        if (verdict.risk < lexicon.scoring.cautionThreshold) return tier1
+        if (verdict.tactics.isEmpty()) return tier1
+        return tier1.copy(
+            score = minOf(verdict.risk, lexicon.scoring.highRiskThreshold - 1),
+            band = RiskBand.CAUTION,
+            matchedFamilies = verdict.tactics,
             tier2Reason = verdict.oneLineReason,
         )
     }

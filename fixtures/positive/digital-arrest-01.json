@@ -1,0 +1,80 @@
+[
+  {
+    "speaker": "CALLER",
+    "text": "Good morning. Main Sub Inspector Rajesh Kumar bol raha hoon, cyber crime branch Mumbai se.",
+    "startMs": 0,
+    "endMs": 8183
+  },
+  {
+    "speaker": "VICTIM",
+    "text": "Ji? Kaun?",
+    "startMs": 8783,
+    "endMs": 11687
+  },
+  {
+    "speaker": "CALLER",
+    "text": "Aapke naam par ek parcel Mumbai airport par pakda gaya hai. Us parcel mein drugs mile hain. Aapka Aadhaar card is parcel se linked hai.",
+    "startMs": 12287,
+    "endMs": 24383
+  },
+  {
+    "speaker": "VICTIM",
+    "text": "Nahi nahi, maine koi parcel nahi bheja.",
+    "startMs": 24983,
+    "endMs": 28871
+  },
+  {
+    "speaker": "CALLER",
+    "text": "Sir, aapke khilaf money laundering ka case ban chuka hai. FIR darj ho gayi hai. Yeh gair zamanti offence hai.",
+    "startMs": 29471,
+    "endMs": 39791
+  },
+  {
+    "speaker": "VICTIM",
+    "text": "Main kya karoon?",
+    "startMs": 40391,
+    "endMs": 42383
+  },
+  {
+    "speaker": "CALLER",
+    "text": "Aap ghabraiye mat. Lekin ek baat dhyan se suniye. Yeh mamla gopniya hai. Case is confidential. Aap kisi ko mat bataiye, ghar walon ko mat batao.",
+    "startMs": 42983,
+    "endMs": 57335
+  },
+  {
+    "speaker": "VICTIM",
+    "text": "Theek hai.",
+    "startMs": 57935,
+    "endMs": 59711
+  },
+  {
+    "speaker": "CALLER",
+    "text": "Aur video call mat katna. Aap digital arrest par hain. Camera on rakhiye, hum aapko surveillance mein rakh rahe hain. Call disconnect mat kijiye warna aap giraftar ho jayenge.",
+    "startMs": 60311,
+    "endMs": 75239
+  },
+  {
+    "speaker": "VICTIM",
+    "text": "Ji, main samajh gaya.",
+    "startMs": 75839,
+    "endMs": 78647
+  },
+  {
+    "speaker": "CALLER",
+    "text": "Ab verification ke liye aapko apna paisa ek government verified account mein transfer karna hoga. Yeh safe custody account hai. Do ghante ke andar. Refundable amount hai, verification ke baad wapas mil jayega.",
+    "startMs": 79247,
+    "endMs": 96431
+  },
+  {
+    "speaker": "VICTIM",
+    "text": "Kitna?",
+    "startMs": 97031,
+    "endMs": 98807
+  },
+  {
+    "speaker": "CALLER",
+    "text": "Aap apna balance bataiye. Aur ek app download kijiye, AnyDesk. Play store se download karke mujhe screen share kijiye taaki main verify kar sakoon.",
+    "startMs": 99407,
+    "endMs": 112271
+  }
+]

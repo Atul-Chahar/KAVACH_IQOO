@@ -16,6 +16,7 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.util.Log
+import androidx.compose.ui.graphics.toArgb
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.kavach.app.KavachApplication
@@ -23,6 +24,7 @@ import com.kavach.app.MainActivity
 import com.kavach.app.R
 import com.kavach.app.monitor.MonitorMode
 import com.kavach.app.monitor.ShieldUiState
+import com.kavach.app.ui.KavachTokens
 import com.kavach.app.ui.ShieldOverlayActivity
 import com.kavach.domain.RiskBand
 import kotlinx.coroutines.CoroutineScope
@@ -204,17 +206,27 @@ class KavachService : Service() {
                 Intent(this, MainActivity::class.java),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             )
+        // Only a scam verdict earns the loud channel. Every call ended on
+        // CHANNEL_ALERT — which bypasses Do Not Disturb — so hanging up on your
+        // mother produced a DND-piercing buzz to announce that the call was
+        // safe. Alerting on good news is how an alert channel loses its meaning
+        // by the third day, and the user turns it off before the call that
+        // matters.
+        val loud = band == RiskBand.HIGH_RISK
         val notification =
             NotificationCompat
-                .Builder(this, KavachNotifications.CHANNEL_ALERT)
-                .setSmallIcon(R.drawable.ic_shield)
+                .Builder(
+                    this,
+                    if (loud) KavachNotifications.CHANNEL_ALERT else KavachNotifications.CHANNEL_STATUS,
+                ).setSmallIcon(R.drawable.ic_shield)
                 .setColor(bandColor(band))
                 .setContentTitle(title)
                 .setContentText(text)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(text))
                 .setContentIntent(open)
                 .setAutoCancel(true)
-                .setCategory(NotificationCompat.CATEGORY_CALL)
+                .setSilent(!loud)
+                .setCategory(if (loud) NotificationCompat.CATEGORY_CALL else NotificationCompat.CATEGORY_STATUS)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .build()
         manager.notify(KavachNotifications.VERDICT_ID, notification)
@@ -284,7 +296,7 @@ class KavachService : Service() {
             .setSmallIcon(R.drawable.ic_shield)
             .setColor(accentColor)
             .setColorized(true)
-            .setSubText(NOTIFICATION_SUBTEXT)
+            .setSubText(getString(R.string.notification_subtext))
             .setCategory(if (alerting) NotificationCompat.CATEGORY_CALL else NotificationCompat.CATEGORY_STATUS)
             .setContentTitle(notificationTitle(band))
             .setContentText(text)
@@ -310,11 +322,20 @@ class KavachService : Service() {
             RiskBand.WATCHING -> getString(R.string.app_name)
         }
 
+    /**
+     * The notification accent, read from the design tokens rather than restated.
+     *
+     * These were three raw hex literals that happened to be Tailwind's defaults,
+     * so the shade in the status bar did not match the shade on the card it
+     * opens. WATCHING is deliberately the neutral ink rather than a green: a
+     * colourised "all clear" is a claim, and Kavach only ever reports what it
+     * has heard so far.
+     */
     private fun bandColor(band: RiskBand): Int =
         when (band) {
-            RiskBand.HIGH_RISK -> COLOR_HIGH_RISK
-            RiskBand.CAUTION -> COLOR_CAUTION
-            RiskBand.WATCHING -> COLOR_WATCHING
+            RiskBand.HIGH_RISK -> KavachTokens.PressRed.toArgb()
+            RiskBand.CAUTION -> KavachTokens.Amber.toArgb()
+            RiskBand.WATCHING -> KavachTokens.Ink.toArgb()
         }
 
     private data class NotificationIntents(
@@ -379,10 +400,7 @@ class KavachService : Service() {
             getSystemService(Vibrator::class.java)
         }
 
-    private fun createChannels() {
-        runCatching { getSystemService(NotificationManager::class.java)?.deleteNotificationChannel(LEGACY_CHANNEL) }
-        KavachNotifications.ensureChannels(this)
-    }
+    private fun createChannels() = KavachNotifications.ensureChannels(this)
 
     /** Minimal shim so the deprecated stopForeground overload is isolated in one place. */
     private object ServiceCompat {
@@ -398,11 +416,6 @@ class KavachService : Service() {
 
     companion object {
         private const val TAG = "KavachService"
-        private const val LEGACY_CHANNEL = "kavach_monitoring"
-        private const val NOTIFICATION_SUBTEXT = "KAVACH LIVE"
-        private const val COLOR_WATCHING = 0xFF22C55E.toInt()
-        private const val COLOR_CAUTION = 0xFFF59E0B.toInt()
-        private const val COLOR_HIGH_RISK = 0xFFEF4444.toInt()
 
         /** Distinct request codes, so one PendingIntent never overwrites another. */
         private const val REQUEST_OPEN = 0

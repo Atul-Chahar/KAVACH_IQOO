@@ -6,12 +6,14 @@ import com.kavach.domain.RiskBand
 import com.kavach.domain.RiskEngine
 import com.kavach.domain.Signal
 import com.kavach.domain.TacticLexicon
+import com.kavach.domain.TranscriptAccumulator
 import com.kavach.domain.TranscriptSource
 import com.kavach.domain.Verdict
 import com.kavach.domain.VerdictSchema
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -73,6 +75,22 @@ class ShieldController(
      */
     private var llmVerdict: Verdict? = null
 
+    /**
+     * The rolling transcript Tier 2 is asked about, and when it was last asked.
+     *
+     * Tier 2 used to be fed one raw window, and only when that window was
+     * settled. On a real device neither held: `com.google.android.as` runs a
+     * continuous session and never fires `onResults` at all, so across a whole
+     * call every window arrived partial and the model was asked exactly nothing
+     * — 519 windows scored by Tier 1, zero questions put to a model that was
+     * loaded, verified and idle. Partials now count, rate-limited to one
+     * question per [TIER2_MIN_INTERVAL_MS], and what gets sent is the
+     * accumulated conversation rather than whichever fragment happened to be
+     * mid-flight.
+     */
+    private val tier2Transcript = TranscriptAccumulator()
+    private var lastAdjudicatedAtMs = 0L
+
     private var sessionJob: Job? = null
     private var sessionStartMs = 0L
     private var source: TranscriptSource? = null
@@ -88,6 +106,8 @@ class ShieldController(
         engine.reset()
         recorder.clear()
         llmVerdict = null
+        tier2Transcript.clear()
+        lastAdjudicatedAtMs = 0L
         source = transcriptSource
         sessionStartMs = clock()
 
@@ -113,8 +133,16 @@ class ShieldController(
                         val assessment = engine.onTranscript(window, elapsedMs())
                         logMatch(window, assessment)
                         recorder.onAssessment(assessment, clock())
-                        queue.trySend(window.text)
+                        offerToTier2(queue, window)
                         publish(merged(assessment), window.text)
+                    }
+                    if (mode == MonitorMode.DEMO) {
+                        // In DemoMode, hold the final warning screen indefinitely
+                        // instead of closing and returning to the home screen. Stop the ticker
+                        // so time decay doesn't degrade the final score while idle.
+                        ticker.cancel()
+                        judge.cancel()
+                        awaitCancellation()
                     }
                 }.onFailure { error ->
                     // Cancellation is how a session ends normally. Reporting it as a
@@ -125,7 +153,7 @@ class ShieldController(
                     _state.update { it.copy(monitoring = false, failureReason = error.message ?: "capture stopped") }
                 }
 
-                // The source ran out: a DemoMode fixture reached its last line.
+                // The source ran out: a live session ended or error occurred.
                 // Close the session explicitly rather than leaving a frozen clock
                 // on screen, and keep the final verdict visible.
                 ticker.cancel()
@@ -176,6 +204,29 @@ class ShieldController(
     }
 
     /**
+     * Decides whether this window is worth a Tier-2 question, and what text to
+     * ask about.
+     *
+     * Every window folds into the rolling transcript first, so the model always
+     * sees the conversation rather than the fragment in flight. A settled window
+     * always asks; a partial asks only once per [TIER2_MIN_INTERVAL_MS] and only
+     * once there is enough transcript to judge. Without the partial path the
+     * model is never asked anything at all on a recogniser that does not
+     * finalise — which is the common case, not the exotic one.
+     */
+    private fun offerToTier2(
+        queue: Channel<String>,
+        window: com.kavach.domain.TranscriptWindow,
+    ) {
+        val rolling = tier2Transcript.add(window.text)
+        val now = clock()
+        val due = now - lastAdjudicatedAtMs >= TIER2_MIN_INTERVAL_MS
+        if (window.isPartial && (!due || rolling.length < TIER2_MIN_CHARS)) return
+        lastAdjudicatedAtMs = now
+        queue.trySend(rolling)
+    }
+
+    /**
      * Tier 2. Every failure path is silent by design: a timeout, malformed JSON
      * or a dead model must be invisible to the user, who keeps seeing the
      * Tier-1 score (docs/ARCHITECTURE.md 3).
@@ -186,13 +237,36 @@ class ShieldController(
         }
     }
 
-    /** One window. Any failure returns quietly; the user keeps seeing Tier 1. */
+    /**
+     * One window. Any failure returns quietly; the user keeps seeing Tier 1.
+     *
+     * Quiet to the *user*, not to logcat. Silence in both directions is why the
+     * model could be loaded, wired and answering nothing at all without anybody
+     * being able to tell — so each window records whether a verdict arrived, and
+     * what it changed about the number on screen. The transcript is never logged,
+     * and neither is the model's sentence: both are derived from what was said.
+     */
     private suspend fun adjudicateOne(transcript: String) {
         val engineRef = adjudicator ?: return
         val raw = runCatching { engineRef.adjudicate(transcript) }.getOrNull()
-        val verdict = VerdictSchema.parseOrNull(raw, knownFamilies) ?: return
+        val verdict = VerdictSchema.parseOrNull(raw, knownFamilies)
+        if (verdict == null) {
+            android.util.Log.i(
+                TIER2_TAG,
+                "no usable verdict (raw=${raw?.length ?: -1} chars) — showing Tier 1",
+            )
+            return
+        }
+        val tier1 = engine.assess(elapsedMs())
         llmVerdict = verdict
-        publish(merged(engine.assess(elapsedMs())), _state.value.transcriptPreview)
+        val shown = merged(tier1)
+        android.util.Log.i(
+            TIER2_TAG,
+            "verdict risk=${verdict.risk} tactics=${verdict.tactics} " +
+                "action=${verdict.recommendedAction} " +
+                "tier1=${tier1.score}/${tier1.band} shown=${shown.score}/${shown.band}",
+        )
+        publish(shown, _state.value.transcriptPreview)
     }
 
     /**
@@ -281,13 +355,26 @@ class ShieldController(
         state.copy(
             familiesTotal = lexicon.families.size,
             familiesForWarning = lexicon.scoring.minDistinctFamiliesForHighRisk,
+            cautionThreshold = lexicon.scoring.cautionThreshold,
+            highRiskThreshold = lexicon.scoring.highRiskThreshold,
             lexiconVersion = lexicon.version,
         )
 
     private fun elapsedMs() = clock() - sessionStartMs
 
     private companion object {
+        const val TIER2_TAG = "KavachTier2"
         const val TICK_MS = 1_000L
+
+        /**
+         * How often Tier 2 may be asked. docs/ARCHITECTURE.md 3 specifies "every
+         * ~8 s"; the bounded DROP_OLDEST queue absorbs anything that arrives
+         * while the model is still thinking.
+         */
+        const val TIER2_MIN_INTERVAL_MS = 8_000L
+
+        /** Below this there is not enough conversation to judge. */
+        const val TIER2_MIN_CHARS = 40
         const val TRANSCRIPT_PREVIEW_CHARS = 240
         const val DEGRADED_NO_MODEL = "Advanced analysis unavailable"
         const val EVIDENCE_LOG_LIMIT = 6

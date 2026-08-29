@@ -6,6 +6,8 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
@@ -19,8 +21,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -29,6 +33,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,7 +51,9 @@ import androidx.compose.ui.unit.sp
 import com.kavach.app.capture.CaptureState
 import com.kavach.app.capture.audioModeName
 import com.kavach.app.monitor.ShieldUiState
+import com.kavach.domain.RiskAssessment
 import com.kavach.domain.RiskBand
+import kotlinx.coroutines.delay
 
 /**
  * Universal Dynamic Island / Call Shield Overlay.
@@ -63,7 +70,28 @@ fun ShieldOverlay(
     onDismiss: () -> Unit,
     onStop: () -> Unit,
 ) {
-    val deaf = capture.silenced || capture.provenSilent
+    // The session takes a moment to come up after the shield appears, so a
+    // not-yet-listening state is only believed once the grace window has passed.
+    // Without it the card would flash on every call before capture starts.
+    var graceElapsed by remember { mutableStateOf(false) }
+    LaunchedEffect(state.monitoring) {
+        graceElapsed = false
+        if (!state.monitoring) {
+            delay(STARTUP_GRACE_MS)
+            graceElapsed = true
+        }
+    }
+
+    // Every way this shield can be on screen while hearing nothing.
+    //
+    // `provenSilent` alone was not enough and the gap was the dangerous kind: it
+    // needs 150 frames before it will commit, so a capture that never started at
+    // all — foreground service refused, permission revoked, AudioRecord failed —
+    // leaves framesRead at 0, reports "not proven silent", and the user gets a
+    // calm pulsing pill over a live scam. A false all-clear is the one outcome
+    // docs/SAFETY.md forbids, so silence of unknown cause is now said out loud.
+    val silentReason = silentReason(state, capture, graceElapsed)
+    val deaf = silentReason != null
     val alerting = state.band == RiskBand.HIGH_RISK && !state.alertDismissed
     val palette = RiskColors.paletteFor(if (deaf) RiskBand.CAUTION else state.band)
     var telemetryExpanded by remember { mutableStateOf(false) }
@@ -76,8 +104,14 @@ fun ShieldOverlay(
         contentAlignment = Alignment.TopCenter,
     ) {
         when {
-            deaf -> DeafCard(capture, onStop)
+            // The warning outranks the can't-hear card, and the order is the
+            // whole point. Both were reachable at once — the platform mutes us
+            // part-way through a call we have *already* scored HIGH_RISK — and
+            // with the deaf branch first the live scam warning was replaced by
+            // "Kavach can't hear this call". The deaf card exists to prevent a
+            // false all-clear; an alert is not an all-clear, so it wins.
             alerting -> AlertCard(state, palette, onCall1930, onDismiss)
+            silentReason != null -> DeafCard(silentReason, capture, onStop)
             else ->
                 DynamicIslandPill(
                     state = state,
@@ -89,6 +123,75 @@ fun ShieldOverlay(
         }
     }
 }
+
+/**
+ * The live score, as a number.
+ *
+ * This tag used to read a fixed "HI+EN", which told the user nothing that
+ * changed during the call — over ninety seconds the capsule looked identical
+ * whether the engine was scoring hard or had gone deaf. The language actually
+ * heard is in the telemetry drawer below, which is where a value that changes
+ * once a session belongs.
+ */
+@Composable
+private fun PillScoreTag(
+    score: Int,
+    isCaution: Boolean,
+) {
+    val shown by animateIntAsState(
+        targetValue = score.coerceIn(0, RiskAssessment.MAX_SCORE),
+        animationSpec = tween(PILL_SCORE_MS),
+        label = "pillScore",
+    )
+    Box(
+        Modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(Color(0xFF2B2725))
+            .padding(horizontal = 7.dp, vertical = 2.dp),
+    ) {
+        Text(
+            text = shown.toString(),
+            color = if (isCaution) KavachTokens.Amber else KavachTokens.Cyan,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+        )
+    }
+}
+
+/**
+ * The same score as a track. Two digits are hard to read at a glance on a call
+ * screen; a bar that visibly grows is not, and growth is the thing the user is
+ * actually asking about when they wonder whether Kavach is working.
+ */
+@Composable
+private fun PillScoreTrack(
+    score: Int,
+    isCaution: Boolean,
+) {
+    val fill by animateFloatAsState(
+        targetValue = score.coerceIn(0, RiskAssessment.MAX_SCORE).toFloat() / RiskAssessment.MAX_SCORE,
+        animationSpec = tween(PILL_SCORE_MS),
+        label = "pillFill",
+    )
+    Spacer(Modifier.size(6.dp))
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(3.dp)
+            .clip(RoundedCornerShape(2.dp))
+            .background(Color(0xFF2B2725)),
+    ) {
+        Box(
+            Modifier
+                .fillMaxWidth(fill)
+                .fillMaxHeight()
+                .background(if (isCaution) KavachTokens.Amber else KavachTokens.Cyan),
+        )
+    }
+}
+
+/** How long the pill's score takes to travel to a new value. */
+private const val PILL_SCORE_MS = 600
 
 /**
  * The Floating Dynamic Island / Live Capsule.
@@ -180,21 +283,10 @@ private fun DynamicIslandPill(
 
             Spacer(Modifier.size(8.dp))
 
-            // Language / Telemetry Pill Tag
-            Box(
-                Modifier
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Color(0xFF2B2725))
-                    .padding(horizontal = 6.dp, vertical = 2.dp),
-            ) {
-                Text(
-                    text = if (capture.language.isNotBlank()) "HI+EN" else "ASR",
-                    color = KavachTokens.Cyan,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
+            PillScoreTag(state.score, isCaution)
         }
+
+        PillScoreTrack(state.score, isCaution)
 
         // Expanded Diagnostics Drawer
         AnimatedVisibility(
@@ -271,6 +363,7 @@ private fun DynamicIslandPill(
  */
 @Composable
 private fun DeafCard(
+    reason: String,
     capture: CaptureState,
     onStop: () -> Unit,
 ) {
@@ -290,11 +383,17 @@ private fun DeafCard(
             letterSpacing = 1.sp,
         )
         Text(
-            "Android is muting our microphone. We are not analysing anything — " +
-                "do not treat the absence of a warning as safety.",
+            reason,
             color = KavachTokens.Ink,
             fontSize = 16.sp,
             modifier = Modifier.padding(top = 8.dp),
+        )
+        Text(
+            "Do not treat the absence of a warning as safety.",
+            color = KavachTokens.Ink,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(top = 6.dp),
         )
         Text(
             diagnosticLine(capture),
@@ -354,13 +453,37 @@ private fun AlertCard(
             }
         }
 
-        Row(
-            Modifier.fillMaxWidth().padding(top = 22.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            OverlayButton("Call 1930", palette.accent, palette.onAccent, Modifier.weight(1f), onCall1930)
-            OverlayButton("I'm fine", Color.Transparent, palette.ink, Modifier.weight(1f), onDismiss, palette.rule)
-        }
+        // Both actions are dragged, not tapped. The person reading this card is
+        // the worst candidate for a tap target: frightened, being talked at, and
+        // often holding the phone against their face — and a stray touch on
+        // "I'm fine" silences the only warning they get. Dragging costs a
+        // deliberate half-second and cannot happen by accident.
+        //
+        // Monochrome on the red, because the design system spends colour once:
+        // the full-bleed press-red *is* the signal, and a green affordance laid
+        // on it would be a second, competing one.
+        Gap(22.dp)
+        SlideToConfirm(
+            label = "Slide to call 1930",
+            icon = Ph.phoneCall,
+            track = palette.ink.copy(alpha = 0.16f),
+            thumb = palette.accent,
+            onThumb = palette.onAccent,
+            ink = palette.ink,
+            onConfirm = onCall1930,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Gap(10.dp)
+        SlideToConfirm(
+            label = "Slide if you're fine",
+            icon = Ph.handPalm,
+            track = palette.ink.copy(alpha = 0.09f),
+            thumb = palette.ink.copy(alpha = 0.22f),
+            onThumb = palette.ink,
+            ink = palette.inkSoft,
+            onConfirm = onDismiss,
+            modifier = Modifier.fillMaxWidth(),
+        )
 
         Text(
             "Kavach can be wrong. It never blocks or ends a call for you.",
@@ -369,33 +492,6 @@ private fun AlertCard(
             textAlign = TextAlign.Start,
             modifier = Modifier.padding(top = 16.dp),
         )
-    }
-}
-
-@Composable
-private fun OverlayButton(
-    label: String,
-    background: Color,
-    content: Color,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-    border: Color? = null,
-) {
-    Box(
-        modifier
-            .clip(RoundedCornerShape(KavachTokens.RadiusCard))
-            .background(background)
-            .then(
-                if (border != null) {
-                    Modifier.border(1.dp, border, RoundedCornerShape(KavachTokens.RadiusCard))
-                } else {
-                    Modifier
-                },
-            ).clickable(onClick = onClick)
-            .padding(vertical = 16.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(label, color = content, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -411,6 +507,31 @@ private fun because(state: ShieldUiState): String {
     }
 }
 
+/**
+ * Why Kavach cannot hear right now, or null if it can.
+ *
+ * Ordered most-specific first, because the sentence the user reads has to name
+ * the thing they can actually fix. "The service was refused" and "the platform
+ * muted us" lead to completely different next steps.
+ */
+private fun silentReason(
+    state: ShieldUiState,
+    capture: CaptureState,
+    graceElapsed: Boolean,
+): String? =
+    when {
+        state.failureReason != null -> state.failureReason
+
+        !state.monitoring && graceElapsed ->
+            "Kavach is not listening. The microphone service did not start — Android may have " +
+                "refused it, or the permission was withdrawn. Open Kavach and start a session by hand."
+
+        capture.silenced || capture.provenSilent ->
+            "Android is muting our microphone, so nothing is being analysed."
+
+        else -> null
+    }
+
 /** Ground truth, unedited. It is on screen because it is what makes the claim checkable. */
 private fun diagnosticLine(capture: CaptureState): String {
     val level = if (capture.rmsDb.isFinite()) "${capture.rmsDb.toInt()} dB" else "silence"
@@ -418,3 +539,6 @@ private fun diagnosticLine(capture: CaptureState): String {
 }
 
 private const val MAX_EVIDENCE = 3
+
+/** How long the session gets to come up before the shield calls it silent. */
+private const val STARTUP_GRACE_MS = 4_000L

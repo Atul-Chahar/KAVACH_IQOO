@@ -1,0 +1,20 @@
+# expected: HIGH_RISK (>=70) | families: AUTHORITY_IMPERSONATION, ISOLATION_AND_SECRECY, URGENCY_AND_THREAT, REMOTE_ACCESS_AND_TRANSFER, CREDENTIAL_EXTRACTION
+# The same digital-arrest script as digital-arrest-01, transcribed the way the
+# hi-IN recogniser actually emits it: Devanagari, not romanised. This fixture
+# exists because the two scripts are matched by two different halves of the
+# lexicon, and until 1.2.0 only one of those halves was populated.
+
+कॉलर: नमस्ते, मैं सीबीआई साइबर क्राइम ब्रांच से बोल रहा हूं।
+पीड़ित: जी? कौन?
+कॉलर: आपके नाम पर एक अवैध पार्सल पकड़ा गया है। पार्सल में ड्रग्स मिले हैं।
+पीड़ित: नहीं नहीं, मैंने कोई पार्सल नहीं भेजा।
+कॉलर: आपका आधार लिंक है इस पार्सल से। आपके खिलाफ मनी लॉन्ड्रिंग का केस बन चुका है, एफआईआर दर्ज हो गई है। यह गैर जमानती अपराध है।
+पीड़ित: मैं क्या करूं?
+कॉलर: घबराइए मत। लेकिन यह मामला गोपनीय है। आप किसी को मत बताइए, घर वालों को मत बताइए।
+पीड़ित: ठीक है।
+कॉलर: आप डिजिटल अरेस्ट पर हैं। कैमरा ऑन रखिए, कॉल मत काटिए, वरना आप गिरफ्तार हो जाएंगे। आप निगरानी में हैं।
+पीड़ित: जी, मैं समझ गया।
+कॉलर: अब वेरिफिकेशन के लिए पैसे एक गवर्नमेंट वेरिफाइड अकाउंट में ट्रांसफर करने होंगे। यह सेफ कस्टडी अकाउंट है, दो घंटे के अंदर। रिफंडेबल अमाउंट है।
+पीड़ित: कितना?
+कॉलर: पहले एक ऐप डाउनलोड कीजिए, एनीडेस्क। फिर स्क्रीन शेयरिंग चालू कीजिए।
+कॉलर: और आपके मोबाइल पर जो कोड आया है, वह ओटीपी बताइए। मैसेज में आया कोड पढ़िए।

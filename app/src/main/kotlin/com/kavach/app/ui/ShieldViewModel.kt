@@ -7,6 +7,7 @@ import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.kavach.app.KavachApplication
+import com.kavach.app.capture.CaptureState
 import com.kavach.app.capture.KavachService
 import com.kavach.app.monitor.MonitorMode
 import com.kavach.app.monitor.ShieldUiState
@@ -30,6 +31,14 @@ class ShieldViewModel(
     private val app = application as KavachApplication
 
     val state: StateFlow<ShieldUiState> = app.controller.state
+
+    /**
+     * Ground truth about the microphone, so the session screen can animate from
+     * the real signal instead of pretending. A waveform that moves while the
+     * platform is feeding us silence would be the false all-clear docs/SAFETY.md
+     * forbids, so the same flow that drives the diagnostics panel drives the art.
+     */
+    val capture: StateFlow<CaptureState> = app.diagnostics.state
 
     val fixtures: List<String> = app.demoFixtures()
 
@@ -81,6 +90,18 @@ class ShieldViewModel(
 
     /** Reveals the matched words in-place. Nothing is written anywhere. */
     fun setShowTranscript(show: Boolean) = app.controller.setShowTranscript(show)
+
+    /**
+     * "I'm fine." Silences the warning for the rest of this call and nothing
+     * more: capture continues, the score keeps moving, the report still records
+     * what was heard.
+     *
+     * The home screen's "Not a scam" button was wired to [stop], so telling
+     * Kavach it had misread the call switched the whole thing off — the exact
+     * conflation [com.kavach.app.monitor.ShieldController.dismissAlert] was
+     * written to end. That fix reached the overlay and never reached here.
+     */
+    fun dismissAlert() = app.controller.dismissAlert()
 
     /** Live monitoring runs in the foreground service, so it survives the screen going off. */
     fun startLive() = KavachService.start(getApplication())

@@ -124,4 +124,9 @@
     <string name="verdict_high_risk_body">वह कॉल ज्ञात स्कैम पैटर्न से मेल खाती है (स्कोर %1$d/100)। अगर ओटीपी, पिन या पैसे दिए हैं, तो 1930 पर तुरंत शिकायत करें।</string>
     <string name="raise_blocked_title">कवच उस कॉल को नहीं देख सका</string>
     <string name="raise_blocked_body">“ऐप्स के ऊपर दिखाएं” अनुमति बंद है, इसलिए आने वाली कॉल पर शील्ड नहीं दिख सकी। टैप करके अनुमति दें — अगली कॉल अपने आप देखी जाएगी।</string>
+    <string name="notification_subtext">कवच सक्रिय</string>
+    <string name="action_slide_to_dial_1930">1930 पर कॉल करने के लिए स्लाइड करें</string>
+    <string name="demo_simulation_note">यह एक रिकॉर्ड किया गया उदाहरण है। असल में कुछ नहीं पकड़ा गया, और किसी को सूचित नहीं किया गया है।</string>
+    <string name="home_status_ready">पूरी तरह तैयार</string>
+    <string name="home_status_partial">आंशिक रूप से तैयार — ठीक करने के लिए टैप करें</string>
 </resources>

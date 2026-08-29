@@ -56,16 +56,29 @@ object TestFixtures {
      */
     fun replay(
         fixture: Fixture,
-        secondsPerLine: Long = 6,
-    ): RiskAssessment {
+        secondsPerLine: Long = SECONDS_PER_LINE,
+    ): RiskAssessment = trace(fixture, secondsPerLine).maxByOrNull { it.score } ?: RiskAssessment.WATCHING
+
+    /**
+     * The same replay, but every intermediate assessment, in order.
+     *
+     * [replay] returns only the peak, which answers "does it catch this" and is
+     * silent on "how long did it take" — and a detector that reaches HIGH_RISK
+     * on the last line of a ninety-second script is not much use to someone
+     * halfway through being robbed. Escalation latency is a property worth
+     * regressing on, so the harness has to expose the whole curve.
+     */
+    fun trace(
+        fixture: Fixture,
+        secondsPerLine: Long = SECONDS_PER_LINE,
+    ): List<RiskAssessment> {
         val engine = RiskEngine(lexicon)
-        var assessment = RiskAssessment.WATCHING
-        var peak = RiskAssessment.WATCHING
-        fixture.lines.forEachIndexed { index, line ->
+        return fixture.lines.mapIndexed { index, line ->
             val endMs = (index + 1) * secondsPerLine * 1000L
-            assessment = engine.onTranscript(TranscriptWindow(line, endMs - secondsPerLine * 1000L, endMs))
-            if (assessment.score >= peak.score) peak = assessment
+            engine.onTranscript(TranscriptWindow(line, endMs - secondsPerLine * 1000L, endMs))
         }
-        return peak
     }
+
+    /** Seconds of speech each fixture line stands for. */
+    const val SECONDS_PER_LINE = 6L
 }
