@@ -13,6 +13,7 @@ import android.content.Context
 object KavachNotifications {
     const val CHANNEL_STATUS = "kavach_status_v3"
     const val CHANNEL_ALERT = "kavach_alerts_v3"
+    const val CHANNEL_MESSAGE_GUARD = "kavach_message_guard_v1"
 
     /**
      * Channel ids this app has used before, deleted on every start.
@@ -34,6 +35,7 @@ object KavachNotifications {
     const val ONGOING_ID = 1001
     const val VERDICT_ID = 1002
     const val RAISE_ID = 1003
+    const val MESSAGE_WARNING_ID = 1004
 
     /**
      * Channel settings are immutable once created, so the old single channel is
@@ -76,6 +78,17 @@ object KavachNotifications {
                 // full-screen intent and CATEGORY_CALL are what carry a warning
                 // through, and those need no extra grant.
                 setBypassDnd(true)
+            },
+        )
+        manager.createNotificationChannel(
+            NotificationChannel(
+                CHANNEL_MESSAGE_GUARD,
+                context.getString(com.kavach.app.R.string.message_channel_name),
+                NotificationManager.IMPORTANCE_HIGH,
+            ).apply {
+                description = context.getString(com.kavach.app.R.string.message_channel_description)
+                enableVibration(true)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PRIVATE
             },
         )
     }

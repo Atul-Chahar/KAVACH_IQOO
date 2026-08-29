@@ -90,6 +90,7 @@ fun ShieldScreen(
     onStartDemo: () -> Unit,
     onStop: () -> Unit,
     onOpenReport: () -> Unit,
+    onOpenMessageGuard: () -> Unit,
     onOpenModelSetup: () -> Unit,
     modifier: Modifier = Modifier,
     onToggleTranscript: (Boolean) -> Unit = {},
@@ -107,6 +108,7 @@ fun ShieldScreen(
             onStartLive,
             onStartDemo,
             onOpenReport,
+            onOpenMessageGuard,
             onOpenModelSetup,
             modelInstalled,
             capabilities,
@@ -126,6 +128,7 @@ private fun HomeSurface(
     onStartLive: () -> Unit,
     onStartDemo: () -> Unit,
     onOpenReport: () -> Unit,
+    onOpenMessageGuard: () -> Unit,
     onOpenModelSetup: () -> Unit,
     modelInstalled: Boolean,
     capabilities: List<Capability>,
@@ -183,6 +186,16 @@ private fun HomeSurface(
             CapabilityStrip(capabilities, onFixCapability)
 
             Gap(14.dp)
+            PaperTile(
+                icon = Ph.shieldWarning,
+                title = stringResource(R.string.message_guard_title),
+                subtitle = stringResource(R.string.message_guard_tile_subtitle),
+                onClick = onOpenMessageGuard,
+                tint = KavachTokens.MagentaDeep,
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            Gap(12.dp)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 PaperTile(
                     icon = Ph.playCircle,
