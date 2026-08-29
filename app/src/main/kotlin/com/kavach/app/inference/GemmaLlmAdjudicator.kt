@@ -7,6 +7,7 @@ import com.google.ai.edge.litertlm.ConversationConfig
 import com.google.ai.edge.litertlm.Engine
 import com.google.ai.edge.litertlm.EngineConfig
 import com.kavach.app.monitor.LlmAdjudicator
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.sync.withLock
@@ -35,11 +36,14 @@ class GemmaLlmAdjudicator(
 
     override suspend fun adjudicate(transcript: String): String? =
         mutex.withLock {
+            // Handles are re-read AFTER the lock: close() takes the same mutex, so
+            // a close racing an in-flight request can no longer free native
+            // resources while this body is inside them (the use-after-free case).
             if (closed || transcript.isBlank()) return@withLock null
+            val activeConversation = conversation ?: initialize()
             runCatching {
                 withContext(Dispatchers.Default) {
                     withTimeout(INFERENCE_TIMEOUT_MS) {
-                        val activeConversation = conversation ?: initialize()
                         val first = activeConversation.sendMessageAsync(prompt(transcript)).toList().joinToString("")
                         if (looksLikeJson(first)) {
                             first
@@ -48,6 +52,11 @@ class GemmaLlmAdjudicator(
                         }
                     }
                 }
+            }.onFailure { error ->
+                // Cancellation is how a session ends normally (scope teardown,
+                // service stop). Swallowing it would corrupt structured-concurrency
+                // cancellation; only genuine inference failures degrade to null.
+                if (error is CancellationException) throw error
             }.getOrNull()
         }
 
@@ -78,9 +87,23 @@ class GemmaLlmAdjudicator(
     }
 
     override fun close() {
-        // Detach first so no new request can enter. The controller closes this
-        // only when no session is using the model; never block the UI with
-        // runBlocking while native resources are released.
+        // best-effort synchronous detach for process teardown (onTerminate);
+        // the ordered path is closeAsync, which serializes against in-flight
+        // inference on the same mutex instead of freeing under it.
+        detach()
+    }
+
+    /**
+     * Ordered teardown: takes the same mutex as [adjudicate], so native close
+     * can never run underneath an in-flight sendMessage. Suspension here is the
+     * point — the caller (model-repository collector) is a coroutine, not the
+     * UI thread, and waiting beats a use-after-free.
+     */
+    suspend fun closeAsync() {
+        mutex.withLock { detach() }
+    }
+
+    private fun detach() {
         closed = true
         conversation?.close()
         conversation = null

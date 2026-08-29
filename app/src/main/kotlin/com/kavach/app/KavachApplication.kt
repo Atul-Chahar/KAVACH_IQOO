@@ -69,7 +69,7 @@ class KavachApplication : Application() {
                             }
                         }
                     }
-                activeAdjudicator?.close()
+                activeAdjudicator?.let { prev -> applicationScope.launch { prev.closeAsync() } }
                 activeAdjudicator = replacement
                 controller.adjudicator = replacement
             }
@@ -77,6 +77,8 @@ class KavachApplication : Application() {
     }
 
     override fun onTerminate() {
+        // best-effort synchronous detach; the ordered path (closeAsync) runs in
+        // the collector above whenever replacement happens during normal runtime.
         activeAdjudicator?.close()
         applicationScope.cancel()
         super.onTerminate()
