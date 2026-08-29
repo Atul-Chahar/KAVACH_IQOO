@@ -19,6 +19,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -51,6 +52,7 @@ fun ShieldScreen(
     onStartDemo: () -> Unit,
     onStop: () -> Unit,
     onOpenReport: () -> Unit,
+    onOpenModelSetup: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val background by animateColorAsState(RiskColors.surfaceFor(state.band), label = "risk-surface")
@@ -78,7 +80,7 @@ fun ShieldScreen(
         state.degradedReason?.let { CautionNote(it, state.band) }
 
         Spacer(Modifier.height(4.dp))
-        Controls(state, onStartLive, onStartDemo, onStop, onOpenReport)
+        Controls(state, onStartLive, onStartDemo, onStop, onOpenReport, onOpenModelSetup)
 
         // The single most important sentence in the app.
         Text(
@@ -217,6 +219,7 @@ private fun Controls(
     onStartDemo: () -> Unit,
     onStop: () -> Unit,
     onOpenReport: () -> Unit,
+    onOpenModelSetup: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (state.monitoring) {
@@ -234,6 +237,11 @@ private fun Controls(
         if (state.incidents.isNotEmpty()) {
             OutlinedButton(onClick = onOpenReport, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.action_report, state.incidents.size), fontSize = 18.sp)
+            }
+        }
+        if (!state.monitoring) {
+            TextButton(onClick = onOpenModelSetup, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.model_action_setup), fontSize = 16.sp)
             }
         }
     }
@@ -274,6 +282,7 @@ private fun ShieldScreenHighRiskPreview() {
             onStartDemo = {},
             onStop = {},
             onOpenReport = {},
+            onOpenModelSetup = {},
         )
     }
 }

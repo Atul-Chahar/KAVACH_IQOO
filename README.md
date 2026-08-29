@@ -19,6 +19,9 @@ Working prototype, verified end to end on a device.
 | `UpiLinkAnalyzer` | four patterns, unit-tested (camera QR capture not yet wired) |
 | Live ASR | Android on-device recogniser; degrades honestly where unavailable |
 | Tier-2 LLM | seam in place (`LlmAdjudicator`), model not yet on device |
+| Model staging | in-app catalogue → browser download → file-picker import, size-verified |
+
+**Screenshots:** `docs/screenshots/` — ten states captured from the running app.
 
 **Measured on the fixture corpus:** 3/3 scam scripts reach HIGH_RISK · 0/4 legitimate calls reach HIGH_RISK · 0/4 even reach CAUTION.
 Re-measure with `./gradlew :domain:test --tests '*FixtureCorpusTest*' -i`; the rates print on every run.

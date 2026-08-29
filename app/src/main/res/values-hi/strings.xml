@@ -36,4 +36,23 @@
     <string name="notification_channel_name">निगरानी</string>
     <string name="notification_channel_description">जब कवच सुन रहा हो तब दिखता है।</string>
     <string name="notification_watching">सुन रहा है। अभी तक कुछ असामान्य नहीं।</string>
+
+    <string name="model_title">उन्नत विश्लेषण</string>
+    <string name="model_intro">कवच इसके बिना भी काम करता है। यह मॉडल जोड़ने पर कवच बातचीत को समझकर भी परख सकता है।</string>
+    <string name="model_step_download">ब्राउज़र में मॉडल डाउनलोड करें। यह बड़ी फ़ाइल है, वाई-फ़ाई का उपयोग करें।</string>
+    <string name="model_step_import">फिर डाउनलोड की गई फ़ाइल कवच में चुनें।</string>
+    <string name="model_action_download">डाउनलोड पेज खोलें</string>
+    <string name="model_action_import">डाउनलोड की गई फ़ाइल चुनें</string>
+    <string name="model_action_delete">मॉडल हटाएं और जगह खाली करें</string>
+    <string name="model_action_setup">उन्नत विश्लेषण सेट करें</string>
+    <string name="model_absent">इंस्टॉल नहीं है। कवच अब भी पूरी तरह काम कर रहा है।</string>
+    <string name="model_ready">इंस्टॉल और सत्यापित (%1$s)।</string>
+    <string name="model_importing">कॉपी हो रहा है… %2$s में से %1$s</string>
+    <string name="model_detail_size">आकार:</string>
+    <string name="model_detail_backend">चलता है:</string>
+    <string name="model_detail_licence">लाइसेंस:</string>
+    <string name="model_detail_source">स्रोत:</string>
+    <string name="model_detail_free">फ़ोन में खाली जगह:</string>
+    <string name="model_privacy_note">कवच के पास इंटरनेट की अनुमति नहीं है, इसलिए वह खुद डाउनलोड नहीं कर सकता — आपका ब्राउज़र करता है और आप फ़ाइल देते हैं। आपकी बातचीत कभी फ़ोन से बाहर नहीं जाती।</string>
+    <string name="model_optional_note">वैकल्पिक। इसके बिना कवच अपना अंतर्निहित पैटर्न इंजन उपयोग करता है।</string>
 </resources>

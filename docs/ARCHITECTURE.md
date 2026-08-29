@@ -116,7 +116,23 @@ See `docs/PRD.md` §5. Never auto-acts. Always names the matched tactics.
 1. Whether Gemma 4 E2B's native audio input (model card says audio supported on E2B/E4B, ≤30 s) is exposed through LiteRT-LM on Android. If yes, it could collapse ASR+LLM into one model. If no, use the two-model path above.
 2. Actual NPU delegate availability on the loaner's OriginOS 6 build.
 
-**Model delivery:** 2.58 GB cannot ship in an APK. Push it to the device over Office Kit file transfer at 08:00 check-in. Budget 20 minutes. Have Whisper-Tiny-only as the fallback if it isn't there by 11:00.
+**Model delivery:** the weights cannot ship in an APK. Two routes, both supported:
+
+1. **In-app staging (default, built 28 Aug).** `ModelSetupScreen` shows the catalogue entry, opens the official URL in the **browser** via `ACTION_VIEW`, and imports the finished file through the Storage Access Framework picker. **The app never fetches it** — it has no `INTERNET` permission and must never acquire one, so the download belongs to the browser and the handover belongs to the user. The picker also avoids any storage permission: access is granted to exactly one file, once.
+2. **Office Kit file transfer** at 08:00 check-in, then the same import step. Budget 20 minutes.
+
+The import writes to a `.part` file, verifies the **exact** byte count, and only then renames — a truncated download on venue wifi is the likeliest real failure and must be caught here, not as a crash inside the runtime. Have Whisper-Tiny-only as the fallback if the model is not on the device by 11:00.
+
+**Catalogue** (read from the Hugging Face API on 28 Aug 2026, not from memory — a wrong URL is a silent, unrecoverable failure on the day). Repo `litert-community` is Google's own LiteRT distribution org and is **ungated**: no account, no licence click-through, no token.
+
+| Variant | File | Size |
+|---|---|---|
+| **Gemma 4 E4B GPU** (shipped in the catalogue) | `gemma-4-E4B-it-gpu.litertlm` | 2.77 GB |
+| Gemma 4 E4B general | `gemma-4-E4B-it.litertlm` | 3.41 GB |
+| Gemma 4 E2B GPU | `gemma-4-E2B-it-gpu.litertlm` | 1.87 GB |
+| Gemma 4 E2B **Qualcomm sm8750 (NPU)** | `gemma-4-E2B-it_qualcomm_sm8750.litertlm` | 2.81 GB |
+
+The sm8750 build is prebuilt for Snapdragon 8 Elite. **Check the loaner's chipset at check-in** — if it matches, that variant is the only one that genuinely puts reasoning on the NPU, which is worth a sentence in the pitch. Adding it is a one-line change to `ModelCatalog`.
 
 ---
 

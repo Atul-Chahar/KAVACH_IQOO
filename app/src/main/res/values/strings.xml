@@ -46,4 +46,24 @@
     <string name="notification_channel_name">Monitoring</string>
     <string name="notification_channel_description">Shown while Kavach is listening. Required by Android, and by us.</string>
     <string name="notification_watching">Listening. Nothing unusual so far.</string>
+
+    <!-- Model setup. The app cannot download: it has no INTERNET permission. -->
+    <string name="model_title">Advanced analysis</string>
+    <string name="model_intro">Kavach works without this. Adding the model lets it reason about a conversation as well as match patterns.</string>
+    <string name="model_step_download">Download the model in your browser. It is large, so use wi-fi.</string>
+    <string name="model_step_import">Then bring the downloaded file into Kavach.</string>
+    <string name="model_action_download">Open download page</string>
+    <string name="model_action_import">Choose the downloaded file</string>
+    <string name="model_action_delete">Remove model and free the space</string>
+    <string name="model_action_setup">Set up advanced analysis</string>
+    <string name="model_absent">Not installed. Kavach is still fully working.</string>
+    <string name="model_ready">Installed and verified (%1$s).</string>
+    <string name="model_importing">Copying… %1$s of %2$s</string>
+    <string name="model_detail_size">Size:</string>
+    <string name="model_detail_backend">Runs on:</string>
+    <string name="model_detail_licence">Licence:</string>
+    <string name="model_detail_source">From:</string>
+    <string name="model_detail_free">Free on this phone:</string>
+    <string name="model_privacy_note">Kavach has no internet permission, so it cannot download this itself — your browser does, and you hand the file over. Nothing you say ever leaves the phone.</string>
+    <string name="model_optional_note">Optional. Without it Kavach uses its built-in pattern engine, which is what catches the scams in our tests.</string>
 </resources>

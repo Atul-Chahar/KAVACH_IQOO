@@ -3,6 +3,7 @@ package com.kavach.app
 import android.app.Application
 import android.util.Log
 import com.kavach.app.inference.SystemAsrTranscriptSource
+import com.kavach.app.model.ModelRepository
 import com.kavach.app.monitor.ShieldController
 import com.kavach.demo.FixtureTranscriptSource
 import com.kavach.domain.TacticLexicon
@@ -20,6 +21,10 @@ class KavachApplication : Application() {
     /** Parsed once. A failure here is a packaging bug, and it should be loud. */
     val lexicon: TacticLexicon by lazy {
         assets.open(LEXICON_ASSET).bufferedReader().use { TacticLexicon.parse(it.readText()) }
+    }
+
+    val models: ModelRepository by lazy {
+        ModelRepository(this).also { it.refresh() }
     }
 
     val controller: ShieldController by lazy {
