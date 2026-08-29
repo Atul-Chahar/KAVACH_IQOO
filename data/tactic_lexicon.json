@@ -1,6 +1,6 @@
 {
   "$schema": "kavach.tactic-lexicon.v1",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "updated": "2026-08-27",
   "provenance": "Markers compiled from publicly published advisories: I4C citizen advisory on digital arrest, PhonePe Trust & Safety, Seqrite threat research, RBI advisories on remote-access-app fraud, and mainstream red-flag explainers. No private or field data.",
   "notes": "Romanised (Hinglish) spellings are included deliberately so keyword matching survives imperfect ASR on code-switched speech. Match case-insensitively on a normalised transcript.",
@@ -156,7 +156,7 @@
   ],
 
   "negativeGuards": {
-    "comment": "Phrases that legitimate callers use and scammers avoid. Each occurrence subtracts from the score. This is our primary false-positive defence alongside the family-diversity rule.",
+    "comment": "Phrases that legitimate callers use and scammers avoid. Each occurrence subtracts from the score. This is our primary false-positive defence alongside the family-diversity rule. Two categories: (a) REASSURANCE — what a real bank, police officer or courier says and a scammer never does; (b) META-DISCUSSION — people talking ABOUT scams rather than being scammed. Category (b) was added in 1.1.0 after fixtures/negative/family-money-talk-01 and police-verification-01 reached CAUTION: a son warning his father about OTP fraud says the same words a scammer does, in the opposite direction. Guards are decayed like any other signal, so they only offset markers from the same part of the conversation.",
     "markers": [
       { "t": "we will never ask for your otp",   "w": -35 },
       { "t": "hum kabhi otp nahi maangte",       "w": -35 },
@@ -170,7 +170,18 @@
       { "t": "take your time",                   "w": -15 },
       { "t": "aaram se sochiye",                 "w": -15 },
       { "t": "you can discuss with your family", "w": -25 },
-      { "t": "ghar walon se baat kar lijiye",    "w": -25 }
+      { "t": "ghar walon se baat kar lijiye",    "w": -25 },
+
+      { "t": "otp nahi maangta",                 "w": -30 },
+      { "t": "otp nahi maangte",                 "w": -30 },
+      { "t": "never asks for your otp",          "w": -30 },
+      { "t": "bank kabhi otp",                   "w": -28 },
+      { "t": "agar koi call aaye",               "w": -25 },
+      { "t": "scam ho rahe",                     "w": -25 },
+      { "t": "fraud ho rahe",                    "w": -25 },
+      { "t": "news mein dekha",                  "w": -15 },
+      { "t": "turant complaint kijiye",          "w": -20 },
+      { "t": "complaint kar dijiye",             "w": -20 }
     ]
   }
 }

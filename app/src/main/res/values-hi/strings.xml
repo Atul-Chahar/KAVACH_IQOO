@@ -1,5 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="skeleton_status">प्रारंभिक बिल्ड। कुछ भी रिकॉर्ड नहीं हो रहा है।</string>
     <string name="safety_no_guarantee">चेतावनी न आना सुरक्षा की गारंटी नहीं है।</string>
+    <string name="safety_pattern_disclaimer">कवच बातचीत को ज्ञात ठगी के तरीकों से मिलाता है। यह निश्चित रूप से नहीं बता सकता कि क्या हो रहा है।</string>
+
+    <string name="state_idle_title">सुन नहीं रहा</string>
+    <string name="state_idle_body">कवच बंद है। जब किसी कॉल पर संदेह हो, तब इसे चालू करें।</string>
+    <string name="state_watching_title">सुन रहा है</string>
+    <string name="state_watching_body">अभी तक कुछ असामान्य नहीं।</string>
+    <string name="state_caution_title">सावधान रहें</string>
+    <string name="state_caution_body">यह बातचीत ठगी में इस्तेमाल होने वाले कुछ तरीकों से मिलती है।</string>
+    <string name="state_high_risk_title">यह ठगी लग रही है</string>
+    <string name="state_high_risk_body">यह बातचीत एक ज्ञात ठगी की स्क्रिप्ट से बहुत मिलती है।</string>
+
+    <string name="tactics_heading">कवच ने क्या देखा</string>
+    <string name="action_heading">अब क्या करें</string>
+    <string name="action_hang_up">कॉल काट दीजिए। आप हमेशा भरोसेमंद नंबर पर वापस कॉल कर सकते हैं।</string>
+    <string name="action_never_otp">ओटीपी, पिन या पासवर्ड कभी न बताएं। कोई असली बैंक या अधिकारी कभी नहीं मांगता।</string>
+    <string name="action_call_1930">शिकायत करें: साइबर क्राइम हेल्पलाइन 1930 पर कॉल कीजिए।</string>
+
+    <string name="action_start">सुनना शुरू करें</string>
+    <string name="action_stop">बंद करें</string>
+    <string name="action_demo">डेमो बातचीत चलाएं</string>
+    <string name="action_report">घटना रिपोर्ट देखें (%1$d)</string>
+    <string name="action_share_report">रिपोर्ट भेजें</string>
+    <string name="action_back">वापस</string>
+
+    <string name="demo_badge">डेमो</string>
+    <string name="demo_picker_title">एक स्क्रिप्टेड बातचीत चलाएं</string>
+    <string name="demo_picker_empty">इस बिल्ड में कोई डेमो स्क्रिप्ट नहीं है।</string>
+
+    <string name="report_title">कवच घटना रिपोर्ट</string>
+    <string name="engine_label">वाणी: %1$s</string>
+    <string name="capture_failed">सुनना बंद हुआ: %1$s</string>
+
+    <string name="notification_channel_name">निगरानी</string>
+    <string name="notification_channel_description">जब कवच सुन रहा हो तब दिखता है।</string>
+    <string name="notification_watching">सुन रहा है। अभी तक कुछ असामान्य नहीं।</string>
 </resources>

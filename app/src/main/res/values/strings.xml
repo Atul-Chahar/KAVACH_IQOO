@@ -1,11 +1,49 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name" translatable="false">Kavach</string>
-    <string name="skeleton_status">Skeleton build. Nothing is being recorded.</string>
 
     <!--
-      docs/SAFETY.md §2 requires this exact sentiment in onboarding, in the
+      docs/SAFETY.md 2 requires this exact sentiment in onboarding, in the
       foreground notification, and out loud in the pitch. Do not delete it.
     -->
     <string name="safety_no_guarantee">No alert is not a guarantee of safety.</string>
+    <!--
+      docs/SAFETY.md 3: we say "matches known scam patterns", never "this is a
+      scam". Kavach is not making a legal or financial determination.
+    -->
+    <string name="safety_pattern_disclaimer">Kavach matches conversations against known scam patterns. It cannot tell you for certain what is happening.</string>
+
+    <string name="state_idle_title">Not listening</string>
+    <string name="state_idle_body">Kavach is off. Start it when you are on a call you are unsure about.</string>
+    <string name="state_watching_title">Listening</string>
+    <string name="state_watching_body">Nothing unusual so far.</string>
+    <string name="state_caution_title">Be careful</string>
+    <string name="state_caution_body">This conversation matches some patterns used in scams.</string>
+    <string name="state_high_risk_title">This looks like a scam</string>
+    <string name="state_high_risk_body">This conversation strongly matches a known scam script.</string>
+
+    <string name="tactics_heading">What Kavach noticed</string>
+    <string name="action_heading">What to do now</string>
+    <string name="action_hang_up">Hang up. You can always call back on a number you trust.</string>
+    <string name="action_never_otp">Never share an OTP, PIN or password. No real bank or officer will ask.</string>
+    <string name="action_call_1930">Report it: call the cybercrime helpline 1930.</string>
+
+    <string name="action_start">Start listening</string>
+    <string name="action_stop">Stop</string>
+    <string name="action_demo">Run a demo conversation</string>
+    <string name="action_report">View incident report (%1$d)</string>
+    <string name="action_share_report">Share report</string>
+    <string name="action_back">Back</string>
+
+    <string name="demo_badge">DEMO</string>
+    <string name="demo_picker_title">Play a scripted conversation</string>
+    <string name="demo_picker_empty">No demo scripts are packaged in this build.</string>
+
+    <string name="report_title">Kavach incident report</string>
+    <string name="engine_label">Speech: %1$s</string>
+    <string name="capture_failed">Listening stopped: %1$s</string>
+
+    <string name="notification_channel_name">Monitoring</string>
+    <string name="notification_channel_description">Shown while Kavach is listening. Required by Android, and by us.</string>
+    <string name="notification_watching">Listening. Nothing unusual so far.</string>
 </resources>

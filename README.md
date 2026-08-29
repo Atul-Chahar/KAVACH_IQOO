@@ -6,6 +6,23 @@ On-device scam-call detection for Android. Runs entirely offline, in Hindi and E
 
 > Google shipped on-device AI that flags scam calls in real time — then locked it to Pixel 9+, under 1% of India's Android market. Kavach brings it to the other 99%.
 
+## Status — 28 Aug 2026
+
+Working prototype, verified end to end on a device.
+
+| | |
+|---|---|
+| Tier-1 detection engine | matcher · time decay · family diversity · negative guards — 72 JVM tests |
+| Risk UI | three states, Hindi + English, action card, vibration |
+| `DemoMode` | fixture replay through the identical pipeline, **verified in airplane mode** |
+| Incident log | metadata-only report, shareable to a laptop |
+| `UpiLinkAnalyzer` | four patterns, unit-tested (camera QR capture not yet wired) |
+| Live ASR | Android on-device recogniser; degrades honestly where unavailable |
+| Tier-2 LLM | seam in place (`LlmAdjudicator`), model not yet on device |
+
+**Measured on the fixture corpus:** 3/3 scam scripts reach HIGH_RISK · 0/4 legitimate calls reach HIGH_RISK · 0/4 even reach CAUTION.
+Re-measure with `./gradlew :domain:test --tests '*FixtureCorpusTest*' -i`; the rates print on every run.
+
 ## Read in this order
 
 | File | What it is |

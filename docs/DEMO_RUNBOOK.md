@@ -69,9 +69,11 @@ Saying this before you're asked converts your weakest ground into your strongest
 | "Won't Google ship this everywhere?" | Maybe. It's been Pixel-only and English-only since launch and still is. We build for the phones people actually hold. |
 | "Is recording calls legal?" | We're not recording, and we're not touching the call stream — Android blocks that anyway. Rolling in-memory buffer of ambient audio, explicit opt-in, user's own device. India follows one-party consent. |
 | "Prove nothing leaves the phone." | Airplane mode is on. There's no INTERNET permission in the manifest. CI fails the build if anyone adds one. |
-| "How accurate is it?" | On our fixture corpus: [FILL IN real numbers before Eval Round 2]. That's a scripted corpus from published advisories, not field data — a real launch needs a labelled dataset of actual scam calls, which 30 hours can't produce. |
+| "How accurate is it?" | On our fixture corpus, measured 28 Aug: **3/3 scam scripts reach HIGH_RISK; 0 of 4 legitimate calls reach HIGH_RISK, and none even reach CAUTION.** Re-run `./gradlew :domain:test --tests '*FixtureCorpusTest*' -i` and read the numbers off the output — they print on every run. That's a scripted corpus of 7 conversations from published advisories, not field data — a real launch needs a labelled dataset of actual scam calls, which 30 hours can't produce. |
 
-**Fill in that last row with real measured numbers.** "We don't know" is a bad answer; an honest number with an honest caveat is a great one.
+**Those numbers are measured, not estimated — re-run the corpus test after any threshold or lexicon change and update the row.** "We don't know" is a bad answer; an honest number with an honest caveat is a great one.
+
+> Note the corpus is 7 conversations. Say the size out loud when you quote the numbers — a jury that discovers it themselves will discount everything else you said.
 
 ---
 

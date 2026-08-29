@@ -72,6 +72,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.activity.compose)
     implementation(libs.kotlinx.coroutines.android)
 
@@ -89,7 +90,18 @@ val syncTacticLexicon by tasks.registering(Copy::class) {
     from(rootProject.file("data/tactic_lexicon.json"))
     into(layout.projectDirectory.dir("src/main/assets"))
 }
-tasks.named("preBuild") { dependsOn(syncTacticLexicon) }
+
+// DemoMode replays these through the identical pipeline, so the scripts the
+// engine is tuned against are exactly the ones the demo plays.
+val syncFixtures by tasks.registering(Copy::class) {
+    from(rootProject.file("fixtures")) {
+        include("**/*.txt")
+        exclude("README.md")
+    }
+    into(layout.projectDirectory.dir("src/main/assets/fixtures"))
+}
+
+tasks.named("preBuild") { dependsOn(syncTacticLexicon, syncFixtures) }
 
 // ---------------------------------------------------------------------------
 // The privacy invariant. See scripts/assert_no_internet.gradle.kts for the

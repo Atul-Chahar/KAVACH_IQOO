@@ -26,3 +26,4 @@ fixtures/**/*.m4a
 # Copied from data/tactic_lexicon.json at build time by :app:syncTacticLexicon.
 # data/ is the single source of truth.
 app/src/main/assets/tactic_lexicon.json
+app/src/main/assets/fixtures/

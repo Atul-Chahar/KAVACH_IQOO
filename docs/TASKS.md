@@ -1,5 +1,22 @@
 # Kavach — build order
 
+> **STATUS, 28 Aug 2026.** The organisers' updated rules removed the pre-event
+> build restriction, so the full prototype was built on Friday and the event is
+> for refinement. What is done, verified end to end on a device:
+>
+> - Tier-1 engine (matcher, aggregator, decay, family diversity, negative guards) — 72 JVM tests green
+> - Risk UI: three states, Hindi + English, action card, vibration
+> - `DemoMode` fixture replay through the identical pipeline — **verified in airplane mode**
+> - Incident log + one-page exportable report (metadata only)
+> - `UpiLinkAnalyzer` (S3.1 logic; camera QR scan not yet wired)
+> - Foreground service, permission flow, honest degradation when ASR is unavailable
+>
+> **Measured on the fixture corpus:** 3/3 positives HIGH_RISK · 0/4 negatives HIGH_RISK · 0/4 negatives even CAUTION.
+>
+> Still open: Whisper/QNN ASR (system on-device ASR is the working rung), Tier-2
+> Gemma adjudication (seam exists, model not downloaded), fixture WAV recordings,
+> camera QR capture, and the `DEMO_FROZEN` freeze.
+
 Slices are ordered. **Do not start slice N+1 until slice N meets its acceptance criteria on the physical device.**
 
 Each slice: implement → `./gradlew test ktlintCheck detekt` → run on device → `git tag demo-safe-h<NN>`.
@@ -40,14 +57,14 @@ Organiser-confirmed as permitted; disclosed in the submission. Build the things 
 > CI also uploads `app-debug.apk` as an artifact — a download path for the phone
 > that does not depend on the venue network.
 
-### S0.3 — Audio capture that survives
+### S0.3 — Audio capture that survives  ·  PARTIAL
 - `AudioCaptureService`, `foregroundServiceType="microphone"`, `FOREGROUND_SERVICE_MICROPHONE` + `RECORD_AUDIO`
 - 16 kHz mono `AudioRecord` → 20 ms frames → fixed 10 s ring buffer in RAM
 - Simple energy-based VAD gate
 - Persistent notification with a working Stop action
 - **Done when:** runs 30 minutes continuously with flat memory; screen-off survives; no file is ever written. **This is the highest-risk pre-event slice — do it first.**
 
-### S0.4 — ASR integration
+### S0.4 — ASR integration  ·  FALLBACK RUNG DONE
 - Whisper Tiny via Qualcomm AI Hub export (`qai-hub-models export whisper_tiny_en --target-runtime tflite`)
 - Try NPU delegate → GPU → CPU, in that order, logging which one won
 - Emit `Flow<TranscriptWindow>` (rolling 60 s, partials allowed)
@@ -69,16 +86,16 @@ Organiser-confirmed as permitted; disclosed in the submission. Build the things 
 
 # PHASE 1 — Saturday (clock starts 10:00, hacking 11:00)
 
-### S1.1 — Tier-1 matcher `[11:00–13:00]`
+### S1.1 — Tier-1 matcher  ·  DONE 28 Aug
 `domain/`: load `data/tactic_lexicon.json`, match against a transcript, emit `Signal`s.
 - **Tests first.** Every family gets a positive and a negative case.
 - **Done when:** `TacticMatcherTest` passes with ≥15 cases
 
-### S1.2 — Aggregator + risk score `[13:00–14:00]`
+### S1.2 — Aggregator + risk score  ·  DONE 28 Aug
 Time decay (half-life 120 s) + family-diversity rule (`HIGH_RISK` needs ≥3 distinct families).
 - **Done when:** every `fixtures/positive/` transcript reaches ≥40 and every `fixtures/negative/` stays <70, as a JVM test over the text fixtures
 
-### S1.3 — Vertical slice: mic → transcript → score → screen `[14:00–15:30]`
+### S1.3 — Vertical slice: transcript → score → screen  ·  DONE 28 Aug
 Wire S0.3 + S0.4 + S1.1 + S1.2 into one `StateFlow<ShieldUiState>` and one Compose screen showing state + matched tactics.
 - **🎯 THE GATE: end-to-end works by 15:30, before Mentor Round 1.** Tag `demo-safe-h04`.
 - If this slips, cut Tier 2 entirely and spend the day polishing Tier 1. That is a winning submission on its own.
@@ -86,14 +103,14 @@ Wire S0.3 + S0.4 + S1.1 + S1.2 into one `StateFlow<ShieldUiState>` and one Compo
 ### S1.4 — Mentor Round 1 `[15:30–16:30]`
 Show the working slice. Not slides.
 
-### S1.5 — Risk UI proper `[16:30–18:30]`
+### S1.5 — Risk UI proper  ·  DONE 28 Aug
 Three states, large type, high contrast, Hindi + English strings, action card with 1930, vibration patterns.
 - **Done when:** legible at arm's length; a non-technical person understands the red state without explanation
 
 ### S1.6 — Eval Round 1 `[19:00–22:00]` — scored
 Demo whatever is stable. Tier 1 alone is a complete story: *"deterministic core today, model adjudication tonight."*
 
-### S1.7 — `DemoMode` and FREEZE IT `[22:00–00:00]`
+### S1.7 — `DemoMode`  ·  BUILT 28 Aug, NOT YET FROZEN
 Replay a fixture WAV through the **identical** pipeline. Works in airplane mode with no mic.
 - **Done when:** it runs three times consecutively without variance. Then `touch demo/DEMO_FROZEN` and never touch that directory again.
 
@@ -107,7 +124,7 @@ LiteRT-LM + Gemma 4 E2B, GPU. Prompt + `VerdictSchema` + repair retry + 4 s time
 - **90-minute spike box.** Not working by 01:30? Ship Tier 1 only and move to S2.3. This is a *feature*, not the product.
 - **Done when:** LLM can be killed mid-run and the user notices nothing
 
-### S2.2 — Incident log + report export `[03:00–04:30]`
+### S2.2 — Incident log + report export  ·  DONE 28 Aug
 Metadata only: timestamp, tactic IDs, score, duration. One-page report export → Office Kit file transfer → opens on laptop.
 
 ### S2.3 — Hindi/Hinglish coverage `[04:30–06:00]`

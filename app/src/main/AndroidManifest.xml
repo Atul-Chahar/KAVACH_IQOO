@@ -40,5 +40,15 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!--
+          Hosts a monitoring session. type=microphone is what Android requires
+          for ambient capture, and the persistent notification it forces is a
+          feature: it is how the user knows we are listening (docs/SAFETY.md 7).
+        -->
+        <service
+            android:name=".capture.KavachService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
     </application>
 </manifest>
