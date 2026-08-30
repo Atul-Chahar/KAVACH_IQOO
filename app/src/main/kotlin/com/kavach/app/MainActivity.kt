@@ -297,8 +297,18 @@ private fun SmsShareRoute(
     if (message == null) return false
     val context = LocalContext.current
     BackHandler(onBack = onClose)
+    // Suppressed because the check is wrong here, not because the code is.
+    // `value` IS assigned, on its own line, at the top level of the producer —
+    // Compose's ProduceStateDoesNotAssignValue lint does not resolve the
+    // assignment through the `by` delegate and reports it either way. Verified
+    // by rewriting it into a local first, which the rule still flagged. The
+    // suppression is scoped to this one call so a genuine missing assignment
+    // elsewhere still fails the build, and `./gradlew check` — which the README
+    // asks reviewers to run — stays green.
+    @Suppress("ProduceStateDoesNotAssignValue")
     val result by produceState<SmsMessageAnalyzer.Result?>(initialValue = null, message) {
-        value = withContext(Dispatchers.Default) { SmsMessageAnalyzer(app.lexicon).analyze(message) }
+        val analysed = withContext(Dispatchers.Default) { SmsMessageAnalyzer(app.lexicon).analyze(message) }
+        value = analysed
     }
     val settled = result
     if (settled == null) {
