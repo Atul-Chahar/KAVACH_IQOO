@@ -1,13 +1,30 @@
 # KAVACH (कवच) 🛡️
 
 **On-Device Real-Time Scam Call Detection for India’s 99% Android Ecosystem.**  
-*100% Offline · Zero Network Permission · Hindi, Hinglish & English · LiteRT-LM & Deterministic Dual-Tier Engine*
+*100% Offline · Zero Network Permission · Hindi, Hinglish & English · 180-marker Deterministic Engine, 0% False Positives*
 
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen?style=flat-square)](https://github.com/Atul-Chahar/KAVACH_IQOO)
 [![Privacy Guarantee](https://img.shields.io/badge/INTERNET_Permission-NONE_(Enforced)-blue?style=flat-square)](#-zero-internet-privacy-guarantee)
 [![Language Support](https://img.shields.io/badge/Languages-Hindi%20%7C%20Hinglish%20%7C%20English-orange?style=flat-square)](#-code-switched-multi-language-speech-pipeline)
 [![Hardware Target](https://img.shields.io/badge/Optimized_for-iQOO_15_%7C_Snapdragon_8_Elite-red?style=flat-square)](#-optimized-for-iqoo-15--snapdragon-8-elite)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=flat-square)](LICENSE)
+
+---
+
+## ✅ Verify every claim in this README — one command, no device
+
+```bash
+./scripts/verify-claims.sh
+```
+
+Prints 31 claims with their **measured** values and exits non-zero if any one of
+them has stopped being true: the privacy invariants, the architecture rules, the
+lexicon numbers, and both accuracy corpora. Takes about a minute.
+
+**[`docs/EVALUATION.md`](docs/EVALUATION.md) maps every hackathon judging
+criterion to the exact file or command that proves it** — including an honest
+list of what we did *not* build, and the one component that is integrated but
+switched off. If a number anywhere disagrees with that file, that file is right.
 
 ---
 
@@ -19,7 +36,7 @@
 
 ## ⚡ The Problem & The Solution
 
-Indian citizens lose over **₹1,750+ Crore annually** to organized cybercrime: **Digital Arrest scams**, fake **CBI/Police extortion**, **electricity bill deactivation threats**, and **urgent UPI/OTP traps**.
+India lost **₹22,495 crore to cybercrime in 2025**, up 24% year on year. "Digital arrest" scams alone took **₹109 crore across 641 cases in Karnataka — ₹42.41 crore of it from 480 cases in Bengaluru**. The scripts are consistent: fake **CBI/Police extortion**, **customs parcel** seizures, **electricity disconnection** threats, and **urgent UPI/OTP traps**. *(Sources in [`docs/PRD.md`](docs/PRD.md) §2.)*
 
 Traditional spam filters (Truecaller, Google Phone) only look at static caller ID databases — they are completely blind the moment a scammer calls from an unflagged VoIP or spoofed number.
 
@@ -37,9 +54,9 @@ Traditional spam filters (Truecaller, Google Phone) only look at static caller I
                                 ▼                                                         ▼
                  ┌─────────────────────────────┐                           ┌─────────────────────────────┐
                  │  Tier 1: Tactic Lexicon     │                           │  Tier 2: LiteRT-LM (Gemma)  │
-                 │  • 7 Tactic Families        │                           │  • Google AI Edge Runtime   │
-                 │  • 120+ Hinglish/Hindi rules│                           │  • 4-bit Quantized on GPU   │
-                 │  • Sub-millisecond Latency  │                           │  • Semantic Reasoning JSON  │
+                 │  • 5 Tactic Families        │                           │  • Integrated + schema-safe │
+                 │  • 180 markers + 40 guards  │                           │  • ⚠ GATED OFF in this build│
+                 │  • Sub-millisecond Latency  │                           │  • Tier 1 carries the app   │
                  └──────────────┬──────────────┘                           └──────────────┬──────────────┘
                                 │                                                         │
                                 └─────────────────────────┬───────────────────────────────┘
@@ -77,13 +94,15 @@ Indian scam calls are heavily code-switched: combining Hindi verbs, English noun
 * Integrated with Android 14+ (API 34/35) `SpeechRecognizer.triggerModelDownload()` and `checkRecognitionSupport()` to dynamically download and manage on-device models on OEM devices like iQOO 15 without confusing settings menus.
 
 ### 4. 🧠 Dual-Tier Hybrid AI Engine
-* **Tier 1 (Deterministic Lexicon Engine)**:
-  * 7 tactic families: `AUTHORITY_IMPERSONATION`, `ISOLATION_AND_SECRECY`, `URGENCY_AND_THREAT`, `CREDENTIAL_EXTRACTION`, `REMOTE_ACCESS_AND_TRANSFER`, `DIGITAL_ARREST`, `FINANCIAL_COERCION`.
-  * **Tactical Diversity Rule**: High Risk alerts require at least 3 distinct tactic families firing together, eliminating false alarms on legitimate calls.
+* **Tier 1 (Deterministic Lexicon Engine)** — this is what ships and what every number below measures:
+  * **5 tactic families**: `AUTHORITY_IMPERSONATION`, `ISOLATION_AND_SECRECY`, `URGENCY_AND_THREAT`, `CREDENTIAL_EXTRACTION`, `REMOTE_ACCESS_AND_TRANSFER`.
+  * **180 markers** carrying English, romanised Hinglish and Devanagari forms side by side, plus **40 negative guards** that *subtract* score — the phrases a real bank, officer or courier uses and a scammer avoids. Provenance (I4C, PhonePe Trust & Safety, Seqrite, RBI advisories) is recorded in `data/tactic_lexicon.json`. No private or field data.
+  * **Tactical Diversity Rule**: HIGH_RISK requires score ≥ 70 **and at least 3 distinct families** firing together. One loud keyword can never raise an alarm — which is why a real courier asking for a real delivery OTP stays silent.
   * Exponential time decay ($t_{1/2} = 120\text{s}$) prevents ancient conversation context from lingering.
-* **Tier 2 (LiteRT-LM Gemma On-Device LLM)**:
-  * Powered by Google's **LiteRT-LM** (`com.google.ai.edge.litertlm`) running a 4-bit quantized Gemma model on the phone's Adreno GPU.
-  * Provides semantic reasoning and structured JSON output to catch subtle, novel phrasing.
+* **Tier 2 (LiteRT-LM Gemma On-Device LLM)** — ⚠️ **integrated but switched off in this build**:
+  * Model catalogue, import, Adreno GPU backend and schema-validated JSON verdicts are all wired, with a silent fallback to Tier 1 on any parse failure.
+  * It is disabled (`KavachApplication.kt`, `TIER2_ENABLED = false`) because LiteRT-LM 0.16.1 and kotlinx-coroutines 1.9–1.10 disagree on where `SendChannel.close$default` lives; the first completed inference throws `NoSuchMethodError` on LiteRT-LM's own JNI thread, outside any coroutine we own, and the process dies mid-call.
+  * An adjudicator that kills the app during a scam call is strictly worse than no adjudicator. **Every accuracy number in this README is Tier 1 alone.** Full detail in [`docs/EVALUATION.md`](docs/EVALUATION.md) §7.
 
 ### 5. 💬 Message Guard — the same engine, on the other door
 Scam scripts arrive by SMS and RCS too, and reach people who never answer an unknown number.
@@ -108,8 +127,8 @@ KAVACH is designed to be calm, legible at arm's length (18sp+ typography), and f
 | State | Indicator | Trigger Condition | User Action |
 |---|---|---|---|
 | **WATCHING** | 🟢 Calm Dot | Call connected, 0–1 tactics detected | Touch passes through to call; no disruption |
-| **CAUTION** | 🟡 Amber Banner | 2 distinct tactic families detected | Highlights identified tactics; advises caution |
-| **HIGH RISK** | 🔴 Red Shield | 3+ distinct tactic families detected | Presents **Call 1930 Helpline** & **Hang Up** buttons |
+| **CAUTION** | 🟡 Amber Banner | Score ≥ 40 | Highlights identified tactics; advises caution |
+| **HIGH RISK** | 🔴 Red Shield | Score ≥ 70 **and** 3+ distinct families | Names the tactics, offers **Call 1930**, and advises hanging up — KAVACH never hangs up for you |
 
 <p align="center">
   <img src="docs/screenshots/redesign/05-high-risk.png" width="30%" alt="High Risk Alert" />
@@ -121,17 +140,24 @@ KAVACH is designed to be calm, legible at arm's length (18sp+ typography), and f
 
 ## 📊 Benchmark & Accuracy
 
-Evaluated across the standardized KAVACH corpus (Digital Arrest, KYC Expiry, Parcel Narcotics, Bank Officer, Electricity Disconnection, and Legitimate Hospital / Courier calls):
+Measured on the KAVACH corpus — digital arrest, customs parcel, TRAI disconnection, electricity cutoff, lottery, refund/remote-access, relative-arrested and OTP phishing, in English, Hinglish and Devanagari — against legitimate police, bank, courier and family calls. **These are the numbers the tests print; nothing here is rounded up.**
 
-| Test Category | Scenario Count | Detection Rate | False Positive Rate |
+| Path | Corpus | Detection | False positives |
 |---|---|---|---|
-| **Scam Scripts (Positive)** | 12 scenarios | **100% (12/12 reached HIGH_RISK)** | — |
-| **Legitimate Calls (Negative)** | 10 scenarios | **0% reached CAUTION / HIGH_RISK** | **0.0%** |
-| **Code-Switched Hinglish** | 8 scenarios | **100% matched across scripts** | **0.0%** |
+| **Calls** | 10 scam / 8 legitimate | **10/10 reached HIGH_RISK** | **0% (0/8)** — none reached even CAUTION |
+| **Messages** | same corpus, message path | **10/10 flagged** | **0% (0/8)** |
+| **Latency** | 10 scam scripts | fastest **24 s** of speech to HIGH_RISK | budget 42 s |
 
-*Re-verify anytime with:*
+The negative corpus is deliberately unkind: it contains a real courier asking for
+a real delivery OTP, a real bank asking for a KYC update, a real fraud desk
+discussing a real transaction, and a father and son *talking about* OTP scams.
+Each says what a scammer says; each stays silent.
+
+*Re-verify anytime:*
 ```bash
-./gradlew :domain:test --tests "*FixtureCorpusTest*" -i
+./scripts/verify-claims.sh                                 # everything, one command
+./gradlew :domain:test --tests "*FixtureCorpusTest*" -i     # calls
+./gradlew :domain:test --tests "*SmsCorpusTest*"     -i     # messages
 ```
 
 ---
@@ -139,7 +165,7 @@ Evaluated across the standardized KAVACH corpus (Digital Arrest, KYC Expiry, Par
 ## 🛠️ Quick Start & Installation
 
 ### Prerequisites
-* **Android Device**: Android 12+ (API 31+) — *Optimized for iQOO 15 (Snapdragon 8 Elite, Android 15/16)*.
+* **Android Device**: Android 11+ (`minSdk 30`) — *developed and verified on iQOO I2501, Android 16*.
 * **JDK**: JDK 21 (Toolchain pinned).
 * **Android SDK**: `compileSdk = 35`, `targetSdk = 35`.
 
@@ -170,6 +196,12 @@ adb install -r -g app/build/outputs/apk/debug/app-debug.apk
 ```
 *Validates device chipset, grants necessary accessibility & overlay appops, checks Google on-device ASR availability, and launches the app.*
 
+### 4. Verify the claims (no device needed)
+```bash
+./scripts/verify-claims.sh
+```
+*Measures all 31 claims this README makes and exits non-zero if any is false.*
+
 ---
 
 ## 🧪 Testing Live Voice on iQOO 15
@@ -188,10 +220,10 @@ adb install -r -g app/build/outputs/apk/debug/app-debug.apk
 KAVACH/
 ├── app/                  # Android Application Module (Jetpack Compose UI, ASR, Capture, LiteRT-LM)
 │   ├── src/main/kotlin/  # Live pipeline, speech recognizer, shield overlay
-│   └── src/test/         # Unit & integration tests for ASR and model managers
+│   └── src/test/         # 14 unit tests for ASR, model and Message Guard state
 ├── domain/               # Pure Kotlin JVM Module (Zero Android SDK dependencies)
 │   ├── src/main/kotlin/  # RiskEngine, TacticMatcher, SignalAggregator, Lexicon
-│   └── src/test/         # 80+ unit tests, mathematical decay and corpus regressions
+│   └── src/test/         # 122 unit tests: decay maths, lexicon and corpus regressions
 ├── demo/                 # Deterministic fixture replay engine for airplane mode demos
 ├── data/
 │   └── tactic_lexicon.json # Single source of truth for scam tactics & weights
@@ -202,7 +234,8 @@ KAVACH/
 
 ## 🏆 iQOO Hackathon 2026
 
-* **Track**: AI & System Innovation on Snapdragon 8 Elite / iQOO 15
+* **Track**: FinTech and Commerce
+* **Judging evidence**: [`docs/EVALUATION.md`](docs/EVALUATION.md) — every criterion mapped to a command that proves it
 * **Team**: **Kavach** (*Atul Chahar & Anant Sharma*)
 * **Repository**: [https://github.com/Atul-Chahar/KAVACH_IQOO](https://github.com/Atul-Chahar/KAVACH_IQOO)
 * **Official Hackathon Portal**: [iQOO Reskilll Hackathon](https://iqoo.reskilll.com/)
