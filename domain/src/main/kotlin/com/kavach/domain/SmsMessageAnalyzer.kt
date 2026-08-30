@@ -20,7 +20,21 @@ class SmsMessageAnalyzer(
     data class Result(
         val severity: Severity,
         val evidence: List<Evidence>,
-    )
+    ) {
+        /**
+         * [evidence] ordered by how much it should worry the reader, worst first.
+         *
+         * A notification has room for two lines, and which two decides whether
+         * the warning lands. Detection order is insertion order — which is an
+         * accident of how [collectEvidence] runs — so a message that both asks
+         * for an OTP and sounds urgent would lead with "it uses urgency",
+         * burying the part that actually costs the user money. The ranking is
+         * fixed and lives here, next to the enum it orders, so the notification
+         * and the detail screen cannot drift apart.
+         */
+        fun ranked(limit: Int = Int.MAX_VALUE): List<Evidence> =
+            evidence.sortedBy { EVIDENCE_RANK.indexOf(it) }.take(limit)
+    }
 
     fun analyze(input: String): Result {
         val text = input.take(MAX_MESSAGE_LENGTH)
@@ -64,16 +78,35 @@ class SmsMessageAnalyzer(
         return evidence
     }
 
+    /**
+     * Whether the message is asking for a credential — as opposed to warning
+     * about one, which is what a real bank does.
+     *
+     * The lexicon's negative guards have the final say, and that is the fix
+     * this shape exists for. The regex fallback used to run whenever the
+     * CREDENTIAL family had not fired cleanly, including when it had not fired
+     * *because a guard subtracted it* — so a guard that had done its job was
+     * then overruled by a coarser pattern. `real-bank-desk-devanagari-01`, a
+     * genuine fraud desk saying "we never ask for OTP; do not tell it to
+     * anyone, not even us", came out HIGH_RISK on the message path while the
+     * call engine cleared it. Under the new surfaces that is a lock-screen
+     * warning and a red capsule accusing a real bank.
+     *
+     * A guard is only overridden by an explicit instruction to hand a
+     * credential over — which is the scammer's own move: recite the safety
+     * warning, then ask anyway.
+     */
     private fun hasCredentialRequest(
         normalized: String,
         signals: List<Signal>,
         families: Set<String>,
     ): Boolean {
-        val guardedFamily = CREDENTIAL in families && signals.none { it.family == TacticMatcher.NEGATIVE_GUARD }
-        if (guardedFamily) return true
+        val guarded = signals.any { it.family == TacticMatcher.NEGATIVE_GUARD }
+        val instructed = credentialInstructionPattern.containsMatchIn(normalized)
+        if (guarded) return instructed
+        if (CREDENTIAL in families) return true
         if (!credentialRequestPattern.containsMatchIn(normalized)) return false
-        return !credentialWarningPattern.containsMatchIn(normalized) ||
-            credentialInstructionPattern.containsMatchIn(normalized)
+        return !credentialWarningPattern.containsMatchIn(normalized) || instructed
     }
 
     private fun isActionEvidence(evidence: Evidence): Boolean =
@@ -105,6 +138,23 @@ class SmsMessageAnalyzer(
     private fun trimLink(link: String): String = link.trimEnd('.', ',', ';', ':', '!', '?', ')', ']', '}')
 
     private companion object {
+        /**
+         * Worst first. Asking for a credential or a payment is the loss itself;
+         * a link is the delivery mechanism; urgency and secrecy are the pressure
+         * around it. LINKED_ACTION is last because it never stands alone — it is
+         * only ever emitted alongside one of the reasons above it.
+         */
+        val EVIDENCE_RANK =
+            listOf(
+                Evidence.CREDENTIAL_REQUEST,
+                Evidence.PAYMENT_OR_REMOTE_ACCESS,
+                Evidence.SUSPICIOUS_LINK,
+                Evidence.IMPERSONATION,
+                Evidence.URGENCY_OR_THREAT,
+                Evidence.SECRECY,
+                Evidence.LINKED_ACTION,
+            )
+
         const val MAX_MESSAGE_LENGTH = 10_000
         const val MAX_LINKS = 8
         const val HIGH_RISK_FAMILIES = 3

@@ -67,4 +67,56 @@ class SmsMessageAnalyzerTest {
 
         assertEquals(Severity.CLEAR, result.severity)
     }
+
+    /**
+     * A real bank's own words, which are the exact opposite of a scammer's.
+     * The regex fallback used to overrule the lexicon guard that catches this,
+     * so the message path called a genuine fraud desk credential theft while
+     * the call engine cleared it — see `hasCredentialRequest`.
+     */
+    @Test
+    fun `a warning about OTP is not a request for one`() {
+        val result =
+            analyzer.analyze(
+                "हम कभी ओटीपी नहीं मांगते। ओटीपी किसी को मत बताइए, हमें भी नहीं।",
+            )
+
+        assertTrue(Evidence.CREDENTIAL_REQUEST !in result.evidence)
+    }
+
+    @Test
+    fun `reciting the warning and then asking anyway is still a request`() {
+        val result = analyzer.analyze("We never ask for your OTP. Now reply with your OTP to confirm.")
+
+        assertTrue(Evidence.CREDENTIAL_REQUEST in result.evidence)
+    }
+
+    @Test
+    fun `ranking leads with the loss, not the pressure`() {
+        val result = analyzer.analyze("Account blocked immediately. Reply with your OTP to restore it.")
+
+        assertTrue(Evidence.URGENCY_OR_THREAT in result.evidence)
+        assertEquals(Evidence.CREDENTIAL_REQUEST, result.ranked().first())
+    }
+
+    @Test
+    fun `ranking keeps a linked action last`() {
+        val result = analyzer.analyze("Your account expires today. Update KYC now: http://sbi-verify.example/login")
+
+        assertTrue(Evidence.LINKED_ACTION in result.evidence)
+        assertEquals(Evidence.LINKED_ACTION, result.ranked().last())
+    }
+
+    @Test
+    fun `ranking honours the limit and never invents evidence`() {
+        val result = analyzer.analyze("Your account expires today. Update KYC now: http://sbi-verify.example/login")
+
+        assertEquals(2, result.ranked(2).size)
+        assertTrue(result.ranked(2).all { it in result.evidence })
+    }
+
+    @Test
+    fun `ranking of nothing is nothing`() {
+        assertEquals(emptyList(), analyzer.analyze("See you at six.").ranked(2))
+    }
 }

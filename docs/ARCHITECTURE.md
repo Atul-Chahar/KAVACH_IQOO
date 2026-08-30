@@ -200,6 +200,82 @@ mic → AudioRecord(16 kHz mono) → 20 ms frames → VAD gate
 
 ---
 
+## 5a. Message Guard — the second door
+
+Calls are one delivery channel for the same scripts. SMS and RCS are the other,
+and they reach people who never answer an unknown number. Message Guard reads
+incoming message notifications, scores the text with the same Tier-1 lexicon,
+and warns where the user already is — the lock screen — so nothing has to be
+opened to act on it.
+
+```
+Google Messages (or the device's default SMS app) posts a notification
+    → NotificationListenerService.onNotificationPosted  [MAIN THREAD]
+        → package filter, group-summary filter, copy strings out of the bundle
+        → hand off and return                            [< 1 ms]
+    → Dispatchers.Default
+        → MessageGuardStore.inspect(sourceKey, conversation, text)
+            → fingerprint dedup (reposts are free)
+            → SmsMessageAnalyzer → TacticMatcher + link/credential patterns
+            → CLEAR? drop it entirely, record nothing
+        → warning notification (conversation name · two ranked reasons · 2 actions)
+        → HIGH_RISK, screen on, unlocked, overlay granted?
+              → MessageIslandOverlay (TYPE_APPLICATION_OVERLAY capsule)
+                and the notification goes to the QUIET channel instead
+```
+
+### Why the callback returns immediately
+
+Android delivers notification-listener callbacks on the process's **main
+thread**. Running the matcher there — 220 markers across up to ten thousand
+characters, plus the first-touch lazy load that parses the lexicon asset and
+builds the matcher — is a UI stall on every message the phone receives. The
+worst case is during a call: `ShieldOverlayActivity` shares that main thread,
+and its being visible is the audio policy's condition for hearing anything
+(§2.2). Blocking it is how the shield freezes and the microphone goes deaf.
+So the callback copies strings and returns; everything else runs on
+`Dispatchers.Default`. The copy must happen in the callback, because the
+platform may recycle the `StatusBarNotification` once it returns.
+
+### Why the capsule is a window, not an Activity
+
+An Activity — even a translucent one sized to a band at the top of the screen —
+*pauses whatever is underneath it*. Measured on the iQOO test unit: with the
+capsule up as an Activity, `dumpsys` reported
+`mLastPausedActivity: com.android.launcher3/.Launcher`, and taps below the
+capsule reached nothing at all. The phone looked alive and answered nothing for
+the nine seconds the capsule was on screen.
+
+`MessageIslandOverlay` uses `TYPE_APPLICATION_OVERLAY` with
+`FLAG_NOT_TOUCH_MODAL`, so it creates no task, pauses nothing, and consumes only
+the touches that land inside the capsule. The window is `WRAP_CONTENT`, so its
+bounds are exactly the capsule's. The call shield stays an Activity and must:
+being a visible Activity is what places Kavach at `PROCESS_STATE_TOP`. Nothing
+in Message Guard listens, so nothing here needs that.
+
+### One finding, one alert
+
+The capsule and a heads-up notification say the same sentence, and on device
+they arrived together — the heads-up drew over the capsule. Heads-up is decided
+by channel importance and nothing else (`setSilent(true)` on a HIGH channel was
+verified not to suppress it), so there are two channels: the capsule takes the
+alert and the warning is posted to `CHANNEL_MESSAGE_GUARD_QUIET`
+(`IMPORTANCE_LOW`), still in the shade and still on the lock screen. When the
+capsule cannot be shown — locked, screen off, or no overlay grant — the
+warning goes to the HIGH channel and does the alerting itself.
+
+### Message Guard failure behaviour
+
+| Failure | Behaviour |
+|---|---|
+| Notification access not granted | Screen says so and offers the one button that fixes it. Nothing is inspected. |
+| Access granted but Android unbound the listener | Screen says "Access granted, but not connected" — never "on". `requestRebind` is asked for on every disconnect. |
+| Overlay permission missing | No capsule. The HIGH-importance heads-up warning does the alerting instead. |
+| Device's default SMS app unknown | A static package list is the floor — on the iQOO unit `sms_default_application` reads `null`, so runtime resolution alone would watch nothing. |
+| Analyzer throws | Caught. No warning, no crash, and the call path is untouched. |
+
+---
+
 ## 6. `UpiLinkAnalyzer` — deterministic, no ML
 
 Parse a scanned QR or pasted link. Flag four patterns:

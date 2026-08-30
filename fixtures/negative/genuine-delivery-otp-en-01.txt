@@ -1,0 +1,10 @@
+# expected: BELOW HIGH_RISK (<70) | a REAL courier asking for the delivery OTP
+# The sharpest test of the family-diversity rule: this is a legitimate call that
+# asks, correctly, for an OTP. One family, however loud, must cap at CAUTION.
+CALLER: Hello sir, I am at your gate with a delivery. I need the OTP that was sent to your phone to close the delivery.
+VICTIM: One moment, let me check the message.
+CALLER: No hurry, take your time.
+VICTIM: Yes, I have it here.
+CALLER: Please read me the code so I can mark it delivered. If you prefer, you can hand it to me at the door instead.
+VICTIM: Here you go.
+CALLER: Thank you, the package is yours. Have a good day.

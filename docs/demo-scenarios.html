@@ -1,0 +1,368 @@
+<title>Kavach Call Scenarios</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --paper:#FAF6F2; --card:#FFFFFF; --ink:#201E1D; --ink-soft:#4A443F; --ink-muted:#6B625C;
+  --rule:rgba(32,30,29,.14); --rule-firm:rgba(32,30,29,.28);
+  --red:#7B1B14; --red-wash:rgba(123,27,20,.07);
+  --cyan:#0088B0; --cyan-wash:rgba(0,136,176,.08);
+  --amber:#9A5A06; --magenta:#D6006C;
+  --hit-ink:#8A0046;
+}
+:root:not([data-theme="light"]){ }
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#171513; --card:#201D1B; --ink:#F2EBE4; --ink-soft:#CBC0B7; --ink-muted:#9C9089;
+    --rule:rgba(242,235,228,.16); --rule-firm:rgba(242,235,228,.3);
+    --red:#F08A7C; --red-wash:rgba(240,138,124,.10);
+    --cyan:#5FC8E8; --cyan-wash:rgba(95,200,232,.10);
+    --amber:#E6A552; --magenta:#FF8EC4; --hit-ink:#FFB3D6;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#171513; --card:#201D1B; --ink:#F2EBE4; --ink-soft:#CBC0B7; --ink-muted:#9C9089;
+  --rule:rgba(242,235,228,.16); --rule-firm:rgba(242,235,228,.3);
+  --red:#F08A7C; --red-wash:rgba(240,138,124,.10);
+  --cyan:#5FC8E8; --cyan-wash:rgba(95,200,232,.10);
+  --amber:#E6A552; --magenta:#FF8EC4; --hit-ink:#FFB3D6;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,sans-serif;
+  font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1180px;margin:0 auto;padding:48px 28px 96px}
+header.top{border-bottom:2px solid var(--ink);padding-bottom:28px;margin-bottom:12px}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-muted);margin:0 0 14px}
+h1{font-family:Newsreader,Georgia,serif;font-weight:600;font-size:clamp(2.1rem,5vw,3.2rem);line-height:1.08;margin:0 0 14px;text-wrap:balance;letter-spacing:-.01em}
+.lede{font-family:Newsreader,Georgia,serif;font-size:1.18rem;line-height:1.55;color:var(--ink-soft);max-width:62ch;margin:0}
+.stats{display:flex;flex-wrap:wrap;gap:0;border-bottom:1px solid var(--rule);margin-bottom:40px}
+.stat{padding:18px 26px 18px 0;margin-right:26px;border-right:1px solid var(--rule)}
+.stat:last-child{border-right:0}
+.stat b{display:block;font-family:"IBM Plex Mono",monospace;font-size:1.5rem;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.1}
+.stat span{font-size:12px;color:var(--ink-muted);letter-spacing:.04em}
+.cols{display:grid;grid-template-columns:230px 1fr;gap:52px;align-items:start}
+@media(max-width:900px){.cols{grid-template-columns:1fr;gap:32px}}
+nav.index{position:sticky;top:28px}
+@media(max-width:900px){nav.index{position:static}}
+nav h4{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-muted);margin:0 0 10px;font-weight:600}
+nav ul{list-style:none;margin:0 0 28px;padding:0}
+nav li{margin:0}
+nav a{display:flex;gap:9px;align-items:baseline;padding:5px 0;color:var(--ink-soft);text-decoration:none;font-size:13.5px;line-height:1.35;border-bottom:1px solid transparent}
+nav a:hover,nav a:focus-visible{color:var(--ink);border-bottom-color:var(--rule-firm);outline:none}
+.dot{width:7px;height:7px;flex:0 0 7px;border-radius:50%;translate:0 -1px}
+.dot.red{background:var(--red)} .dot.calm{background:var(--cyan)}
+h2.band{font-family:Newsreader,Georgia,serif;font-weight:600;font-size:1.9rem;margin:0 0 6px;letter-spacing:-.01em}
+.band-note{color:var(--ink-soft);max-width:60ch;margin:0 0 30px}
+.scenario{border-top:1px solid var(--rule-firm);padding:26px 0 34px}
+.scenario:first-of-type{border-top-width:2px;border-top-color:var(--ink)}
+.s-head{display:flex;gap:24px;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;margin-bottom:16px}
+.s-title{flex:1 1 340px}
+.s-head h3{font-family:Newsreader,Georgia,serif;font-weight:600;font-size:1.42rem;margin:0 0 5px;letter-spacing:-.005em;text-wrap:balance}
+.note{margin:0;color:var(--ink-soft);font-size:14.5px;max-width:56ch}
+.s-meta{display:flex;flex-direction:column;align-items:flex-end;gap:5px;text-align:right}
+.verdict{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:600;letter-spacing:.03em;padding:4px 9px;border-radius:2px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.verdict.red{background:var(--red-wash);color:var(--red);border:1px solid var(--red)}
+.verdict.calm{background:var(--cyan-wash);color:var(--cyan);border:1px solid var(--cyan)}
+.timing{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--ink-muted);font-variant-numeric:tabular-nums}
+.track{position:relative;height:5px;background:var(--rule);margin:0 0 14px;border-radius:1px}
+.seg{position:absolute;top:-3px;width:2px;height:11px;border-radius:1px}
+.seg.amber{background:var(--amber)} .seg.red{background:var(--red)}
+.fams{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px}
+.fam{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-muted);border:1px solid var(--rule);padding:3px 7px;border-radius:2px}
+.script{border-left:2px solid var(--rule-firm);padding-left:18px;display:flex;flex-direction:column;gap:11px}
+.scenario.scam .script{border-left-color:var(--red)}
+.scenario.genuine .script{border-left-color:var(--cyan)}
+.turn{display:grid;grid-template-columns:64px 1fr;gap:14px;align-items:baseline}
+@media(max-width:640px){.turn{grid-template-columns:1fr;gap:2px}}
+.who{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);padding-top:3px}
+.turn.victim .said{color:var(--ink-soft)}
+.said{margin:0;font-size:15.5px;line-height:1.62}
+mark{background:none;padding:0;color:inherit}
+mark.hit{color:var(--hit-ink);font-weight:500;text-decoration:underline;text-decoration-color:var(--magenta);text-decoration-thickness:2px;text-underline-offset:3px}
+mark.guard{color:var(--cyan);text-decoration:underline;text-decoration-color:var(--cyan);text-decoration-thickness:2px;text-underline-offset:3px;text-decoration-style:dotted}
+.file{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-muted);margin:16px 0 0}
+.legend{display:flex;flex-wrap:wrap;gap:22px;padding:16px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);margin-bottom:34px;font-size:13px;color:var(--ink-soft)}
+.legend span{display:inline-flex;align-items:baseline;gap:7px}
+.key{width:22px;height:2px;translate:0 -4px}
+.key.mg{background:var(--magenta)} .key.cy{background:var(--cyan)}
+.howto{background:var(--card);border:1px solid var(--rule);border-radius:2px;padding:22px 24px;margin:0 0 42px}
+.howto h4{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;margin:0 0 12px;color:var(--ink-muted)}
+.howto ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:7px;font-size:14.5px;color:var(--ink-soft)}
+.howto strong{color:var(--ink);font-weight:600}
+footer{margin-top:64px;padding-top:22px;border-top:1px solid var(--rule);font-size:13px;color:var(--ink-muted);max-width:66ch}
+a{color:var(--cyan)}
+:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media print{nav.index{display:none}.cols{grid-template-columns:1fr}}
+</style>
+<div class="wrap">
+<header class="top">
+  <p class="eyebrow">Kavach · verified against the fixture corpus · 30 Aug 2026</p>
+  <h1>Eleven calls to run at the judges</h1>
+  <p class="lede">Seven scam scripts that reach the red warning, and four genuine calls that must not. Every score and every timing on this page was measured by replaying the script through the detection engine — none of it is estimated.</p>
+</header>
+
+<div class="stats">
+  <div class="stat"><b>10 / 10</b><span>positives reach the warning</span></div>
+  <div class="stat"><b>0%</b><span>false positives (0 of 8)</span></div>
+  <div class="stat"><b>0%</b><span>genuine calls reaching amber</span></div>
+  <div class="stat"><b>24s</b><span>fastest to red</span></div>
+</div>
+
+<div class="cols">
+<nav class="index">
+  <h4>Scam scripts</h4><ul><li><a href="#demo-script-en-01"><span class="dot red"></span>The five-beat opener</a></li><li><a href="#relative-arrested-en-01"><span class="dot red"></span>“Your son has been detained”</a></li><li><a href="#customs-parcel-en-01"><span class="dot red"></span>The customs parcel</a></li><li><a href="#trai-disconnect-01"><span class="dot red"></span>TRAI number disconnection</a></li><li><a href="#electricity-cutoff-en-01"><span class="dot red"></span>Electricity disconnection</a></li><li><a href="#refund-remote-access-en-01"><span class="dot red"></span>The refund that needs your screen</a></li><li><a href="#lottery-prize-en-01"><span class="dot red"></span>The prize that costs money</a></li></ul>
+  <h4>Must stay calm</h4><ul><li><a href="#genuine-police-fir-en-01"><span class="dot calm"></span>A real officer about your own FIR</a></li><li><a href="#genuine-delivery-otp-en-01"><span class="dot calm"></span>A courier asking for the delivery OTP</a></li><li><a href="#genuine-bank-kyc-en-01"><span class="dot calm"></span>A real bank asking for a KYC update</a></li><li><a href="#real-bank-fraud-desk-01"><span class="dot calm"></span>A real fraud desk about a real transaction</a></li></ul>
+</nav>
+
+<main>
+  <div class="howto">
+    <h4>Running one</h4>
+    <ol>
+      <li>Phone on <strong>speakerphone</strong>, on the table. Kavach hears the room, not the call — on earpiece it hears only your half.</li>
+      <li>The second person reads the <strong>Caller</strong> lines. Pause about two seconds between turns; the recogniser settles an utterance at a silence.</li>
+      <li>Read at a normal pace. The underlined phrases are the ones that score — say those exactly.</li>
+      <li>Follow a scam with a <strong>genuine call</strong>. A detector that only ever says "scam" is a smoke alarm taped to the on position.</li>
+    </ol>
+  </div>
+
+  <div class="legend">
+    <span><i class="key mg"></i> underlined — a phrase that scores</span>
+    <span><i class="key cy"></i> dotted — a guard phrase that subtracts</span>
+    <span>Red needs <strong>three different families</strong>, not one loud one.</span>
+  </div>
+
+  <h2 class="band">Scam scripts</h2>
+  <p class="band-note">Ordered by how fast they reach red. Each opens differently on purpose — if a judge asks for another scenario, the next one down is not the same trick again.</p>
+  
+<article class="scenario scam" id="demo-script-en-01">
+  <header class="s-head">
+    <div class="s-title"><h3>The five-beat opener</h3><p class="note">Purpose-built to escalate one family per beat. Fastest to red. Open with this.</p></div>
+    <div class="s-meta">
+      <span class="verdict red">Warns · 100</span>
+      <span class="timing">amber 12s · red 24s</span>
+    </div>
+  </header>
+  <div class="track" role="img" aria-label="Amber at 12 seconds, red at 24 seconds"><span class="seg amber" style="left:25.0%"></span><span class="seg red" style="left:50.0%"></span></div>
+  <div class="fams"><span class="fam">Authority</span><span class="fam">Urgency</span><span class="fam">Isolation</span><span class="fam">Money / remote access</span><span class="fam">Credentials</span></div>
+  <div class="script"><div class="turn caller"><span class="who">Caller</span><p class="said">Good afternoon. This is Inspector Sharma from the <mark class="hit" title="Authority">CBI</mark>. <mark class="hit" title="Authority">Your Aadhaar is linked</mark> to a <mark class="hit" title="Authority">money laundering</mark> case.</p></div>
+<div class="turn victim"><span class="who">You</span><p class="said">Sorry, who is this?</p></div>
+<div class="turn caller"><span class="who">Caller</span><p class="said">An <mark class="hit" title="Authority">arrest warrant</mark> has been issued against you. This is a <mark class="hit" title="Urgency">non bailable</mark> offence. <mark class="hit" title="Urgency">You will be arrested</mark> <mark class="hit" title="Urgency">within two hours</mark>.</p></div>
+<div class="turn victim"><span class="who">You</span><p class="said">I have not done anything.</p></div>
+<div class="turn caller"><span class="who">Caller</span><p class="said">You are under <mark class="hit" title="Isolation">digital arrest</mark>. <mark class="hit" title="Isolation">Do not tell anyone</mark>, not even your family. <mark class="hit" title="Isolation">Keep your camera on</mark> and <mark class="hit" title="Isolation">do not disconnect</mark> this call.</p></div>
+<div class="turn victim"><span class="who">You</span><p class="said">Okay. Okay, I am listening.</p></div>
+<div class="turn caller"><span class="who">Caller</span><p class="said">For clearance you must <mark class="hit" title="Money / remote access">transfer to this account</mark>. It is a <mark class="hit" title="Money / remote access">safe custody account</mark> and it is fully refundable. Now install <mark class="hit" title="Money / remote access">AnyDesk</mark> and turn <mark class="hit" title="Money / remote access">screen sharing on</mark>.</p></div>
+<div class="turn victim"><span class="who">You</span><p class="said">How much are we talking about?</p></div>
+<div class="turn caller"><span class="who">Caller</span><p class="said"><mark class="hit" title="Credentials">Read me the code</mark> that just arrived on your phone. Tell me the <mark class="hit" title="Credentials">OTP</mark>. And confirm your <mark class="hit" title="Credentials">UPI PIN</mark>.</p></div></div>
+  <p class="file">fixtures/positive/demo-script-en-01.txt</p>
+</article>
+
+<article class="scenario scam" id="relative-arrested-en-01">
+  <header class="s-head">
+    <div class="s-title"><h3>“Your son has been detained”</h3><p class="note">Aimed at parents. Emotional pressure, secrecy, money — and it never asks for a credential.</p></div>
+    <div class="s-meta">
+      <span class="verdict red">Warns · 100</span>
+      <span class="timing">amber 12s · red 24s</span>
+    </div>
+  </header>
+  <div class="track" role="img" aria-label="Amber at 12 seconds, red at 24 seconds"><span class="seg amber" style="left:25.0%"></span><span class="seg red" style="left:50.0%"></span></div>
+  <div class="fams"><span class="fam">Authority</span><span class="fam">Urgency</span><span class="fam">Isolation</span><span class="fam">Money / remote access</span></div>
+  <div class="script"><div class="turn caller"><span class="who">Caller</span><p class="said">Madam, I am <mark class="hit" title="Authority">Sub Inspector</mark> Verma. Your son has been detained in a <mark class="hit" title="Authority">narcotics</mark> case and an <mark class="hit" title="Authority">FIR</mark> has been registered.</p></div>
+<div class="turn victim"><span class="who">You</span><p class="said">What? Is he alright?</p></div>
+<div class="turn caller"><span class="who">Caller</span><p class="said">He is here at the station. This is a <mark class="hit" title="Urgency">non bailable</mark> matter and he will be arrested formally <mark class="hit" title="Urgency">within two hours</mark>.</p></div>
+<div class="turn victim"><span class="who">You</span><p class="said">Please, I want to speak to him.</p></div>
+<div class="turn caller"><span class="who">Caller</span><p class="said">Not yet. <mark class="hit" title="Isolation">Do not tell anyone</mark>, especially not other family members, and <mark class="hit" title="Isolation">do not disconnect</mark> this call.</p></div>
+<div class="turn victim"><span class="who">You</span><p class="said">I understand.</p></div>
+<div class="turn caller"><span class="who">Caller</span><p class="said">To settle this quietly you can <mark class="hit" title="Money / remote access">transfer to this account</mark>. Treat it as an <mark class="hit" title="Money / remote access">advance payment</mark> against the bail, fully refundable.</p></div></div>
+  <p class="file">fixtures/positive/relative-arrested-en-01.txt</p>
+</article>
+
+<article class="scenario scam" id="customs-parcel-en-01">
+  <header class="s-head">
+    <div class="s-title"><h3>The customs parcel</h3><p class="note">The FedEx variant — the most reported opening after digital arrest.</p></div>
+    <div class="s-meta">
+      <span class="verdict red">Warns · 100</span>
+      <span class="timing">amber 24s · red 24s</span>
+    </div>
+  </header>
+  <div class="track" role="img" aria-label="Amber at 24 seconds, red at 24 seconds"><span class="seg amber" style="left:50.0%"></span><span class="seg red" style="left:50.0%"></span></div>
+  <div class="fams"><span class="fam">Authority</span><span class="fam">Urgency</span><span class="fam">Isolation</span><span class="fam">Money / remote access</span></div>
+  <div class="script"><div class="turn caller"><span class="who">Caller</span><p class="said">Good morning, I am calling from the <mark class="hit" title="Authority">customs department</mark> at Mumbai airport. An <mark class="hit" title="Authority">illegal parcel</mark> has been intercepted in your name.</p></div>
+<div class="turn victim"><span class="who">You</span><p class="said">A parcel? I have not sent anything.</p></div>
+<div class="turn caller"><span class="who">Caller</span><p class="said">The parcel contains <mark class="hit" title="Authority">narcotics</mark>. <mark class="hit" title="Authority">Your Aadhaar is linked</mark> to the shipping documents, so a case of <mark class="hit" title="Authority">money laundering</mark> has been registered.</p></div>
+<div class="turn victim"><span class="who">You</span><p class="said">That cannot be right.</p></div>
+<div class="turn caller"><span class="who">Caller</span><p class="said">Sir, <mark class="hit" title="Urgency">legal action will be taken</mark> <mark class="hit" title="Urgency">within two hours</mark> unless this is resolved. <mark class="hit" title="Isolation">Do not tell anyone</mark> about this, and <mark class="hit" title="Isolation">do not disconnect</mark> the call.</p></div>
+<div class="turn victim"><span class="who">You</span><p class="said">What do I have to do?</p></div>
+<div class="turn caller"><span class="who">Caller</span><p class="said">You will need to <mark class="hit" title="Money / remote access">transfer to this account</mark> for verification. It is a <mark class="hit" title="Money / remote access">refundable amount</mark>, held only until your name is cleared.</p></div></div>
+  <p class="file">fixtures/positive/customs-parcel-en-01.txt</p>
+</article>
+
+<article class="scenario scam" id="trai-disconnect-01">
+  <header class="s-head">
+    <div class="s-title"><h3>TRAI number disconnection</h3><p class="note">Two callers: a “TRAI officer” who transfers you to a “cyber crime” officer.</p></div>
+    <div class="s-meta">
+      <span class="verdict red">Warns · 100</span>
+      <span class="timing">amber 12s · red 30s</span>
+    </div>
+  </header>
+  <div class="track" role="img" aria-label="Amber at 12 seconds, red at 30 seconds"><span class="seg amber" style="left:25.0%"></span><span class="seg red" style="left:62.5%"></span></div>
+  <div class="fams"><span class="fam">Authority</span><span class="fam">Urgency</span><span class="fam">Isolation</span><span class="fam">Money / remote access</span></div>
+  <div class="script"><div class="turn caller"><span class="who">Caller</span><p class="said">This call is from <mark class="hit" title="Authority">TRAI</mark>. Your mobile number will be disconnected <mark class="hit" title="Urgency">within two hours</mark> due to illegal activity registered against it.</p></div>
+<div class="turn victim"><span class="who">You</span><p class="said">What activity?</p></div>
+<div class="turn caller"><span class="who">Caller</span><p class="said"><mark class="hit" title="Authority">Your Aadhaar is linked</mark> to a second SIM which has been used for harassment complaints. There is an <mark class="hit" title="Authority">FIR</mark>. I am transferring you to the <mark class="hit" title="Authority">cyber crime branch</mark>.</p></div>
+<div class="turn caller"><span class="who">Caller 2</span><p class="said"><mark class="hit" title="Authority">Sub Inspector</mark> speaking. Sir, this is a <mark class="hit" title="Urgency">non bailable</mark> matter. An <mark class="hit" title="Authority">arrest warrant</mark> may be issued today.</p></div>
+<div class="turn victim"><span class="who">You</span><p class="said">I have not done anything.</p></div>
+<div class="turn caller"><span class="who">Caller 2</span><p class="said">We understand. But the <mark class="hit" title="Isolation">case is confidential</mark>, please <mark class="hit" title="Isolation">do not tell anyone</mark>, and <mark class="hit" title="Isolation">do not disconnect</mark> the call. <mark class="hit" title="Isolation">Keep your camera on</mark>. You are <mark class="hit" title="Isolation">under surveillance</mark> until verification is complete.</p></div>
+<div class="turn victim"><span class="who">You</span><p class="said">Okay.</p></div>
+<div class="turn caller"><span class="who">Caller 2</span><p class="said">For clearance you will need to <mark class="hit" title="Money / remote access">transfer to this account</mark> for verification. It is a <mark class="hit" title="Money / remote access">refundable amount</mark> held in a <mark class="hit" title="Money / remote access">safe custody account</mark>. Also <mark class="hit" title="Money / remote access">install this app</mark>, <mark class="hit" title="Money / remote access">AnyDesk</mark>, and turn <mark class="hit" title="Money / remote access">screen sharing on</mark> so our officer can verify your bank records.</p></div></div>
+  <p class="file">fixtures/positive/trai-disconnect-01.txt</p>
+</article>
+
+<article class="scenario scam" id="electricity-cutoff-en-01">
+  <header class="s-head">
+    <div class="s-title"><h3>Electricity disconnection</h3><p class="note">Nobody claims to be an official. Proves the alarm is not a hunt for the word “police”.</p></div>
+    <div class="s-meta">
+      <span class="verdict red">Warns · 97</span>
+      <span class="timing">amber 24s · red 36s</span>
+    </div>
+  </header>
+  <div class="track" role="img" aria-label="Amber at 24 seconds, red at 36 seconds"><span class="seg amber" style="left:50.0%"></span><span class="seg red" style="left:75.0%"></span></div>
+  <div class="fams"><span class="fam">Urgency</span><span class="fam">Money / remote access</span><span class="fam">Credentials</span></div>
+  <div class="script"><div class="turn caller"><span class="who">Caller</span><p class="said">This is regarding your electricity connection. Your last bill was not processed and this is your <mark class="hit" title="Urgency">last warning</mark> before disconnection tonight.</p></div>
+<div class="turn victim"><span class="who">You</span><p class="said">I paid that bill.</p></div>
+<div class="turn caller"><span class="who">Caller</span><p class="said">The system shows it pending, sir. <mark class="hit" title="Urgency">Immediate action</mark> is required or <mark class="hit" title="Urgency">legal action will be taken</mark> by the department.</p></div>
+<div class="turn victim"><span class="who">You</span><p class="said">What should I do?</p></div>
+<div class="turn caller"><span class="who">Caller</span><p class="said"><mark class="hit" title="Money / remote access">Install this app</mark> so our engineer can verify the meter reading remotely. Search for <mark class="hit" title="Money / remote access">AnyDesk</mark> on the Play Store and turn <mark class="hit" title="Money / remote access">screen sharing on</mark>.</p></div>
+<div class="turn victim"><span class="who">You</span><p class="said">It is asking for a code.</p></div>
+<div class="turn caller"><span class="who">Caller</span><p class="said">Yes, <mark class="hit" title="Credentials">read me the code</mark>. Tell me the <mark class="hit" title="Credentials">OTP</mark> that has arrived, and confirm your <mark class="hit" title="Credentials">UPI PIN</mark> to complete the reversal.</p></div></div>
+  <p class="file">fixtures/positive/electricity-cutoff-en-01.txt</p>
+</article>
+
+<article class="scenario scam" id="refund-remote-access-en-01">
+  <header class="s-head">
+    <div class="s-title"><h3>The refund that needs your screen</h3><p class="note">Fake customer care. The tell is remote access, not the threat.</p></div>
+    <div class="s-meta">
+      <span class="verdict red">Warns · 84</span>
+      <span class="timing">amber 24s · red 36s</span>
+    </div>
+  </header>
+  <div class="track" role="img" aria-label="Amber at 24 seconds, red at 36 seconds"><span class="seg amber" style="left:50.0%"></span><span class="seg red" style="left:75.0%"></span></div>
+  <div class="fams"><span class="fam">Authority</span><span class="fam">Money / remote access</span><span class="fam">Credentials</span></div>
+  <div class="script"><div class="turn caller"><span class="who">Caller</span><p class="said">Hello sir, I am calling from the <mark class="hit" title="Authority">bank fraud department</mark> about a failed transaction on your account.</p></div>
+<div class="turn victim"><span class="who">You</span><p class="said">Yes, a payment did fail yesterday.</p></div>
+<div class="turn caller"><span class="who">Caller</span><p class="said">Exactly. I can process the <mark class="hit" title="Money / remote access">refundable amount</mark> right now, but the reversal has to be done from your device.</p></div>
+<div class="turn victim"><span class="who">You</span><p class="said">How?</p></div>
+<div class="turn caller"><span class="who">Caller</span><p class="said">Please <mark class="hit" title="Money / remote access">install this app</mark> called <mark class="hit" title="Money / remote access">AnyDesk</mark>, or <mark class="hit" title="Money / remote access">Quick Support</mark>, and turn <mark class="hit" title="Money / remote access">screen sharing on</mark> so I can guide you.</p></div>
+<div class="turn victim"><span class="who">You</span><p class="said">It has opened.</p></div>
+<div class="turn caller"><span class="who">Caller</span><p class="said">Good. Now a message has arrived. <mark class="hit" title="Credentials">Read me the code</mark>, tell me the <mark class="hit" title="Credentials">OTP</mark>, and confirm your <mark class="hit" title="Credentials">UPI PIN</mark> so the amount is credited.</p></div></div>
+  <p class="file">fixtures/positive/refund-remote-access-en-01.txt</p>
+</article>
+
+<article class="scenario scam" id="lottery-prize-en-01">
+  <header class="s-head">
+    <div class="s-title"><h3>The prize that costs money</h3><p class="note">Cheerful throughout — the case a threat-shaped detector misses.</p></div>
+    <div class="s-meta">
+      <span class="verdict red">Warns · 89</span>
+      <span class="timing">amber 24s · red 36s</span>
+    </div>
+  </header>
+  <div class="track" role="img" aria-label="Amber at 24 seconds, red at 36 seconds"><span class="seg amber" style="left:50.0%"></span><span class="seg red" style="left:75.0%"></span></div>
+  <div class="fams"><span class="fam">Urgency</span><span class="fam">Money / remote access</span><span class="fam">Credentials</span></div>
+  <div class="script"><div class="turn caller"><span class="who">Caller</span><p class="said">Congratulations sir! Your number has won the <mark class="hit" title="Money / remote access">KBC lottery</mark>, twenty five lakh rupees.</p></div>
+<div class="turn victim"><span class="who">You</span><p class="said">Really? I did not enter anything.</p></div>
+<div class="turn caller"><span class="who">Caller</span><p class="said">It is a promotional draw. To release the prize we need a small <mark class="hit" title="Money / remote access">processing fee</mark> first, an <mark class="hit" title="Money / remote access">advance payment</mark> of ten thousand.</p></div>
+<div class="turn victim"><span class="who">You</span><p class="said">I have to pay to receive money?</p></div>
+<div class="turn caller"><span class="who">Caller</span><p class="said">It is standard, and it is a <mark class="hit" title="Money / remote access">refundable amount</mark>. Please <mark class="hit" title="Money / remote access">transfer to this account</mark> today, this is the <mark class="hit" title="Urgency">last warning</mark> before the prize lapses.</p></div>
+<div class="turn victim"><span class="who">You</span><p class="said">Alright, tell me how.</p></div>
+<div class="turn caller"><span class="who">Caller</span><p class="said">I am sending a request now. <mark class="hit" title="Credentials">Read me the code</mark>, tell me the <mark class="hit" title="Credentials">OTP</mark>, and confirm your <mark class="hit" title="Credentials">UPI PIN</mark>.</p></div></div>
+  <p class="file">fixtures/positive/lottery-prize-en-01.txt</p>
+</article>
+
+  <h2 class="band" style="margin-top:56px">Calls that must stay calm</h2>
+  <p class="band-note">These are the ones worth demonstrating unprompted. Each says something a naive keyword detector would alarm on, and each stays quiet for a reason you can point at.</p>
+  
+<article class="scenario genuine" id="genuine-police-fir-en-01">
+  <header class="s-head">
+    <div class="s-title"><h3>A real officer about your own FIR</h3><p class="note">Says “Sub Inspector”, “FIR” and “police station” out loud. Authority alone is not evidence.</p></div>
+    <div class="s-meta">
+      <span class="verdict calm">Stays calm · 28</span>
+      <span class="timing">never reaches amber</span>
+    </div>
+  </header>
+  <div class="script"><div class="turn caller"><span class="who">Caller</span><p class="said">Good afternoon, this is <mark class="hit" title="Authority">Sub Inspector</mark> Kulkarni from the police station. You filed a complaint about a stolen phone last week.</p></div>
+<div class="turn victim"><span class="who">You</span><p class="said">Yes, I did.</p></div>
+<div class="turn caller"><span class="who">Caller</span><p class="said">Your <mark class="hit" title="Authority">FIR</mark> has been registered and the handset has been traced. I need you to come and identify it when you are free.</p></div>
+<div class="turn victim"><span class="who">You</span><p class="said">How do I know this is genuine?</p></div>
+<div class="turn caller"><span class="who">Caller</span><p class="said">Fair question. <mark class="guard" title="Negative guard">This call is recorded for quality</mark>. You can call us back on the station landline listed on your copy of the <mark class="hit" title="Authority">FIR</mark>, and your <mark class="guard" title="Negative guard">reference number for this call</mark> is 4471.</p></div>
+<div class="turn victim"><span class="who">You</span><p class="said">Thank you, I will come tomorrow.</p></div>
+<div class="turn caller"><span class="who">Caller</span><p class="said"><mark class="guard" title="Negative guard">Take your time</mark>. Bring your ID, and <mark class="guard" title="Negative guard">you can discuss with your family</mark> before coming if you prefer. We never ask for money or an <mark class="hit" title="Credentials">OTP</mark> on the phone.</p></div></div>
+  <p class="file">fixtures/negative/genuine-police-fir-en-01.txt</p>
+</article>
+
+<article class="scenario genuine" id="genuine-delivery-otp-en-01">
+  <header class="s-head">
+    <div class="s-title"><h3>A courier asking for the delivery OTP</h3><p class="note">A legitimate call that asks, correctly, for an OTP. One family — however loud — cannot alarm.</p></div>
+    <div class="s-meta">
+      <span class="verdict calm">Stays calm · 28</span>
+      <span class="timing">never reaches amber</span>
+    </div>
+  </header>
+  <div class="script"><div class="turn caller"><span class="who">Caller</span><p class="said">Hello sir, I am at your gate with a delivery. I need the <mark class="hit" title="Credentials">OTP</mark> that was sent to your phone to close the delivery.</p></div>
+<div class="turn victim"><span class="who">You</span><p class="said">One moment, let me check the message.</p></div>
+<div class="turn caller"><span class="who">Caller</span><p class="said">No hurry, <mark class="guard" title="Negative guard">take your time</mark>.</p></div>
+<div class="turn victim"><span class="who">You</span><p class="said">Yes, I have it here.</p></div>
+<div class="turn caller"><span class="who">Caller</span><p class="said">Please <mark class="hit" title="Credentials">read me the code</mark> so I can mark it delivered. If you prefer, you can hand it to me at the door instead.</p></div>
+<div class="turn victim"><span class="who">You</span><p class="said">Here you go.</p></div>
+<div class="turn caller"><span class="who">Caller</span><p class="said">Thank you, the package is yours. Have a good day.</p></div></div>
+  <p class="file">fixtures/negative/genuine-delivery-otp-en-01.txt</p>
+</article>
+
+<article class="scenario genuine" id="genuine-bank-kyc-en-01">
+  <header class="s-head">
+    <div class="s-title"><h3>A real bank asking for a KYC update</h3><p class="note">Trips the same fraud-desk marker the scam does, then defuses itself.</p></div>
+    <div class="s-meta">
+      <span class="verdict calm">Stays calm · 12</span>
+      <span class="timing">never reaches amber</span>
+    </div>
+  </header>
+  <div class="script"><div class="turn caller"><span class="who">Caller</span><p class="said">Good morning, I am from your bank&#x27;s <mark class="hit" title="Authority">fraud monitoring team</mark>. Your KYC documents are due for their periodic update.</p></div>
+<div class="turn victim"><span class="who">You</span><p class="said">Do I need to do something online?</p></div>
+<div class="turn caller"><span class="who">Caller</span><p class="said">No. Please <mark class="guard" title="Negative guard">visit your nearest branch</mark> with your ID at any time in the next month. There is no deadline pressure and nothing is blocked.</p></div>
+<div class="turn victim"><span class="who">You</span><p class="said">Can you not do it over the phone?</p></div>
+<div class="turn caller"><span class="who">Caller</span><p class="said"><mark class="guard" title="Negative guard">We will never ask for your OTP</mark>, PIN or password over a call, so no. If you would rather confirm this is us, <mark class="guard" title="Negative guard">you can call us back on the number on your card</mark>.</p></div>
+<div class="turn victim"><span class="who">You</span><p class="said">That is reassuring.</p></div>
+<div class="turn caller"><span class="who">Caller</span><p class="said">Your <mark class="guard" title="Negative guard">reference number for this call</mark> is 90218. <mark class="guard" title="Negative guard">Take your time</mark>, and <mark class="guard" title="Negative guard">you can discuss with your family</mark> before visiting.</p></div></div>
+  <p class="file">fixtures/negative/genuine-bank-kyc-en-01.txt</p>
+</article>
+
+<article class="scenario genuine" id="real-bank-fraud-desk-01">
+  <header class="s-head">
+    <div class="s-title"><h3>A real fraud desk about a real transaction</h3><p class="note">The hardest negative: it genuinely trips authority and urgency, then hands back control.</p></div>
+    <div class="s-meta">
+      <span class="verdict calm">Stays calm · 12</span>
+      <span class="timing">never reaches amber</span>
+    </div>
+  </header>
+  <div class="script"><div class="turn caller"><span class="who">Caller</span><p class="said">Good afternoon, I am calling from your bank&#x27;s <mark class="hit" title="Authority">fraud monitoring team</mark> regarding a transaction on your card ending 4471.</p></div>
+<div class="turn victim"><span class="who">You</span><p class="said">Okay, go ahead.</p></div>
+<div class="turn caller"><span class="who">Caller</span><p class="said">We flagged a transaction of eighteen thousand rupees at an online merchant this morning. Can you confirm whether this was you?</p></div>
+<div class="turn victim"><span class="who">You</span><p class="said">No, that wasn&#x27;t me.</p></div>
+<div class="turn caller"><span class="who">Caller</span><p class="said">Thank you. I have blocked the card as a precaution. You will not be liable for that transaction.</p></div>
+<div class="turn victim"><span class="who">You</span><p class="said">How do I know this call is genuine?</p></div>
+<div class="turn caller"><span class="who">Caller</span><p class="said">That is a very fair question. <mark class="guard" title="Negative guard">We will never ask for your OTP</mark>, PIN or password, and I will not ask you for any code. If you prefer, please hang up and call us back on the number on your card. You can also <mark class="guard" title="Negative guard">visit your nearest branch</mark>. Your <mark class="guard" title="Negative guard">reference number for this call</mark> is 8829104.</p></div>
+<div class="turn victim"><span class="who">You</span><p class="said">Alright, that&#x27;s reassuring.</p></div>
+<div class="turn caller"><span class="who">Caller</span><p class="said"><mark class="guard" title="Negative guard">Take your time</mark>, and <mark class="guard" title="Negative guard">you can discuss with your family</mark> before doing anything. A replacement card will reach you in five working days.</p></div></div>
+  <p class="file">fixtures/negative/real-bank-fraud-desk-01.txt</p>
+</article>
+
+  <footer>
+    <p>Hinglish and Devanagari scripts also ship in <code>fixtures/</code> — digital-arrest, otp-phish, courier-delivery, family-money-talk, police-verification and the Devanagari bank desk. They are not reproduced here because this page is for reading aloud in English.</p>
+    <p>Scores come from <code>FixtureCorpusTest</code>. Timings are seconds of speech to each band, measured line by line. Re-run with <code>./gradlew :domain:test --tests '*FixtureCorpusTest*' -i</code>.</p>
+  </footer>
+</main>
+</div>
+</div>

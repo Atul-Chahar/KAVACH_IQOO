@@ -57,7 +57,15 @@ object TestFixtures {
     fun replay(
         fixture: Fixture,
         secondsPerLine: Long = SECONDS_PER_LINE,
-    ): RiskAssessment = trace(fixture, secondsPerLine).maxByOrNull { it.score } ?: RiskAssessment.WATCHING
+    ): RiskAssessment =
+        trace(fixture, secondsPerLine)
+            // Ties broken by family count, not by arrival order. `maxByOrNull`
+            // returns the *first* maximum, so once a script saturates at 100 the
+            // reported assessment was whichever line got there first — and the
+            // corpus table then under-reported the families, showing four for a
+            // fixture that ends up naming five.
+            .maxWithOrNull(compareBy({ it.score }, { it.matchedFamilies.size }))
+            ?: RiskAssessment.WATCHING
 
     /**
      * The same replay, but every intermediate assessment, in order.

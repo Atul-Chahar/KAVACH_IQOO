@@ -1,0 +1,10 @@
+# expected: HIGH_RISK (>=70) | families: URGENCY_AND_THREAT, REMOTE_ACCESS_AND_TRANSFER, CREDENTIAL_EXTRACTION
+# ~55s spoken, English. Advance-fee prize scam. Cheerful rather than threatening,
+# which is exactly why a detector that only looks for threats misses it.
+CALLER: Congratulations sir! Your number has won the KBC lottery, twenty five lakh rupees.
+VICTIM: Really? I did not enter anything.
+CALLER: It is a promotional draw. To release the prize we need a small processing fee first, an advance payment of ten thousand.
+VICTIM: I have to pay to receive money?
+CALLER: It is standard, and it is a refundable amount. Please transfer to this account today, this is the last warning before the prize lapses.
+VICTIM: Alright, tell me how.
+CALLER: I am sending a request now. Read me the code, tell me the OTP, and confirm your UPI PIN.

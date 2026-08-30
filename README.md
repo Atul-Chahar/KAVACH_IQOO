@@ -85,6 +85,14 @@ Indian scam calls are heavily code-switched: combining Hindi verbs, English noun
   * Powered by Google's **LiteRT-LM** (`com.google.ai.edge.litertlm`) running a 4-bit quantized Gemma model on the phone's Adreno GPU.
   * Provides semantic reasoning and structured JSON output to catch subtle, novel phrasing.
 
+### 5. 💬 Message Guard — the same engine, on the other door
+Scam scripts arrive by SMS and RCS too, and reach people who never answer an unknown number.
+* A `NotificationListenerService` reads **incoming message notifications only** — filtered to known messaging apps plus the device's resolved default SMS app. KAVACH holds **no `READ_SMS` permission** and never touches the SMS database.
+* The same Tier-1 lexicon scores the text, on `Dispatchers.Default`. The listener callback arrives on the **main thread**, so it copies the strings and returns in under a millisecond — anything heavier there stalls the UI, and during a call it would stall the very Activity that keeps the microphone alive.
+* The warning is **self-contained**: it names the conversation, gives the two worst reasons in plain words, and carries **Call 1930** and **This is fine** as actions. It is readable and actionable **from the lock screen** — you never open KAVACH to resolve one.
+* On an unlocked screen a HIGH_RISK finding raises a **Dynamic Island capsule** — a `TYPE_APPLICATION_OVERLAY` window with `FLAG_NOT_TOUCH_MODAL`, so it pauses nothing and the phone stays fully usable underneath it. Never a full-screen takeover: a text message is not a live call.
+* **Message text is never stored.** Only the conversation name, the time, and the warning categories, in memory, until the process ends. Messages KAVACH clears are not recorded at all.
+
 ---
 
 ## 📱 App Walkthrough & UI Progression

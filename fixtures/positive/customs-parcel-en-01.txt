@@ -1,0 +1,10 @@
+# expected: HIGH_RISK (>=70) | families: AUTHORITY_IMPERSONATION, URGENCY_AND_THREAT, ISOLATION_AND_SECRECY, REMOTE_ACCESS_AND_TRANSFER
+# ~70s spoken, English. The FedEx/customs parcel variant — the most reported
+# opening in Indian phone fraud after digital arrest.
+CALLER: Good morning, I am calling from the customs department at Mumbai airport. An illegal parcel has been intercepted in your name.
+VICTIM: A parcel? I have not sent anything.
+CALLER: The parcel contains narcotics. Your Aadhaar is linked to the shipping documents, so a case of money laundering has been registered.
+VICTIM: That cannot be right.
+CALLER: Sir, legal action will be taken within two hours unless this is resolved. Do not tell anyone about this, and do not disconnect the call.
+VICTIM: What do I have to do?
+CALLER: You will need to transfer to this account for verification. It is a refundable amount, held only until your name is cleared.

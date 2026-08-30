@@ -1,0 +1,374 @@
+<title>Kavach, Explained</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --paper:#FAF6F2; --card:#FFFFFF; --ink:#201E1D; --ink-soft:#4A443F; --ink-muted:#6B625C;
+  --rule:rgba(32,30,29,.14); --rule-firm:rgba(32,30,29,.3);
+  --red:#7B1B14; --red-wash:rgba(123,27,20,.07);
+  --amber:#9A5A06; --amber-wash:rgba(154,90,6,.09);
+  --cyan:#0088B0; --cyan-wash:rgba(0,136,176,.08);
+  --magenta:#D6006C;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#171513; --card:#201D1B; --ink:#F2EBE4; --ink-soft:#CBC0B7; --ink-muted:#9C9089;
+    --rule:rgba(242,235,228,.16); --rule-firm:rgba(242,235,228,.32);
+    --red:#F08A7C; --red-wash:rgba(240,138,124,.11);
+    --amber:#E6A552; --amber-wash:rgba(230,165,82,.11);
+    --cyan:#5FC8E8; --cyan-wash:rgba(95,200,232,.11);
+    --magenta:#FF8EC4;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#171513; --card:#201D1B; --ink:#F2EBE4; --ink-soft:#CBC0B7; --ink-muted:#9C9089;
+  --rule:rgba(242,235,228,.16); --rule-firm:rgba(242,235,228,.32);
+  --red:#F08A7C; --red-wash:rgba(240,138,124,.11);
+  --amber:#E6A552; --amber-wash:rgba(230,165,82,.11);
+  --cyan:#5FC8E8; --cyan-wash:rgba(95,200,232,.11);
+  --magenta:#FF8EC4;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);
+ font-family:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,sans-serif;font-size:16.5px;line-height:1.65;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1150px;margin:0 auto;padding:52px 28px 110px}
+.top{border-bottom:2px solid var(--ink);padding-bottom:30px;margin-bottom:44px}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-muted);margin:0 0 14px}
+h1{font-family:Newsreader,Georgia,serif;font-weight:600;font-size:clamp(2.2rem,5.5vw,3.4rem);line-height:1.06;margin:0 0 16px;letter-spacing:-.015em;text-wrap:balance}
+.lede{font-family:Newsreader,Georgia,serif;font-size:1.22rem;line-height:1.55;color:var(--ink-soft);max-width:64ch;margin:0}
+.cols{display:grid;grid-template-columns:210px 1fr;gap:56px;align-items:start}
+@media(max-width:920px){.cols{grid-template-columns:1fr;gap:30px}}
+nav{position:sticky;top:26px}
+@media(max-width:920px){nav{position:static;border-bottom:1px solid var(--rule);padding-bottom:18px}}
+nav h4{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-muted);margin:0 0 9px;font-weight:600}
+nav ol{list-style:none;margin:0;padding:0;counter-reset:s}
+nav li{counter-increment:s}
+nav a{display:flex;gap:9px;padding:5px 0;color:var(--ink-soft);text-decoration:none;font-size:13.5px;line-height:1.35;border-bottom:1px solid transparent}
+nav a::before{content:counter(s);font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--ink-muted);padding-top:2px}
+nav a:hover,nav a:focus-visible{color:var(--ink);border-bottom-color:var(--rule-firm);outline:none}
+section{margin-bottom:60px;scroll-margin-top:24px}
+h2{font-family:Newsreader,Georgia,serif;font-weight:600;font-size:2rem;margin:0 0 8px;letter-spacing:-.012em;text-wrap:balance}
+h3{font-family:Newsreader,Georgia,serif;font-weight:600;font-size:1.3rem;margin:32px 0 8px;letter-spacing:-.005em}
+h4{font-family:"IBM Plex Sans",sans-serif;font-weight:600;font-size:1rem;margin:22px 0 5px}
+p{margin:0 0 15px;max-width:70ch}
+.sub{color:var(--ink-soft);max-width:66ch;margin:0 0 26px}
+ul,ol.body{margin:0 0 16px;padding-left:22px;max-width:68ch}
+li{margin-bottom:7px}
+strong{font-weight:600}
+code{font-family:"IBM Plex Mono",monospace;font-size:.88em;background:var(--card);border:1px solid var(--rule);padding:1px 5px;border-radius:2px}
+.lights{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:0;border-top:2px solid var(--ink);margin:0 0 26px}
+.light{padding:20px 22px 22px 0;border-right:1px solid var(--rule);margin-right:22px}
+.light:last-child{border-right:0;margin-right:0}
+.light .name{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:2px;display:inline-block;margin-bottom:11px}
+.light.calm .name{background:var(--cyan-wash);color:var(--cyan);border:1px solid var(--cyan)}
+.light.amb .name{background:var(--amber-wash);color:var(--amber);border:1px solid var(--amber)}
+.light.red .name{background:var(--red-wash);color:var(--red);border:1px solid var(--red)}
+.light p{font-size:14.5px;margin:0 0 9px}
+.light .rule{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-muted);font-variant-numeric:tabular-nums}
+table{border-collapse:collapse;width:100%;font-size:14.5px;margin:0 0 18px}
+.scroll{overflow-x:auto;margin-bottom:18px}
+th{text-align:left;font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-muted);font-weight:600;padding:0 16px 8px 0;border-bottom:1px solid var(--rule-firm);white-space:nowrap}
+td{padding:10px 16px 10px 0;border-bottom:1px solid var(--rule);vertical-align:top}
+td.num{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+.qa{border-top:1px solid var(--rule-firm);padding:20px 0 4px}
+.qa:first-of-type{border-top:2px solid var(--ink)}
+.qa h4{font-family:Newsreader,Georgia,serif;font-size:1.18rem;font-weight:600;margin:0 0 8px}
+.dec{border-left:2px solid var(--rule-firm);padding:2px 0 2px 20px;margin:0 0 26px}
+.dec h4{margin:0 0 4px;font-size:1.02rem}
+.dec .why{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-muted);margin:0 0 7px}
+.callout{background:var(--card);border:1px solid var(--rule);border-left:3px solid var(--amber);border-radius:2px;padding:18px 22px;margin:0 0 24px}
+.callout.red{border-left-color:var(--red)}
+.callout.cy{border-left-color:var(--cyan)}
+.callout p:last-child{margin-bottom:0}
+.callout h4{margin:0 0 7px}
+footer{margin-top:70px;padding-top:24px;border-top:1px solid var(--rule);font-size:13.5px;color:var(--ink-muted);max-width:70ch}
+a{color:var(--cyan)}
+:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+<div class="wrap">
+<div class="top">
+  <p class="eyebrow">Kavach · iQOO Hackathon 2026 · Bengaluru</p>
+  <h1>Kavach, explained</h1>
+  <p class="lede">An on-device scam-call detector for Android. It listens to a call, recognises the tactics a scammer uses, and warns the person while the call is still happening. Nothing leaves the phone.</p>
+</div>
+
+<div class="cols">
+<nav>
+  <h4>Contents</h4>
+  <ol>
+    <li><a href="#lights">Amber and red</a></li>
+    <li><a href="#plain">In plain words</a></li>
+    <li><a href="#scoring">How it scores</a></li>
+    <li><a href="#technical">Technically</a></li>
+    <li><a href="#decisions">Decisions and why</a></li>
+    <li><a href="#asked">Questions you'll get</a></li>
+    <li><a href="#sms">SMS fraud</a></li>
+    <li><a href="#limits">What it can't do</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<section id="lights">
+<h2>Amber and red</h2>
+<p class="sub">Three states, and the rule for each one is arithmetic you can check against what was just said.</p>
+
+<div class="lights">
+  <div class="light calm">
+    <span class="name">Watching</span>
+    <p>Kavach is listening and nothing has come up. The screen shows a live waveform and a moving score so you can see it working.</p>
+    <p class="rule">score below 40</p>
+  </div>
+  <div class="light amb">
+    <span class="name">Amber</span>
+    <p>Two different scam tactics have appeared. Worth paying attention to, not worth panicking about. A real bank fraud desk can reach amber, and that's fine.</p>
+    <p class="rule">score 40 or more</p>
+  </div>
+  <div class="light red">
+    <span class="name">Red</span>
+    <p>Three different tactics, and a high score. The full-screen warning appears, names the tactics it heard, and offers to dial 1930, the national cybercrime helpline.</p>
+    <p class="rule">score 70+ <em>and</em> 3 different tactic families</p>
+  </div>
+</div>
+
+<div class="callout red">
+<h4>The "and" is the whole design</h4>
+<p>A high score alone can never produce red. One tactic shouting repeatedly stays amber no matter how loud it gets. Red requires three <em>different</em> kinds of manipulation, which is what a script looks like and an ordinary conversation doesn't.</p>
+</div>
+</section>
+
+<section id="plain">
+<h2>In plain words</h2>
+
+<p>Scam callers follow a script. They claim to be someone official, they frighten you, they tell you not to talk to anyone, and then they ask for money or a code. Almost every scam call in India runs those beats in roughly that order.</p>
+
+<p>Kavach listens to the call through the phone's microphone and turns the speech into text on the phone itself. It compares that text against a list of 170 phrases that scammers use, sorted into five kinds of manipulation. When three different kinds show up in the same call, it warns you.</p>
+
+<p>It never hangs up, never blocks a number, never touches your bank. It shows a warning and tells you which tactics it heard. What you do next is yours.</p>
+
+<h3>The five tactics</h3>
+<div class="scroll">
+<table>
+<thead><tr><th>Tactic</th><th>What it sounds like</th></tr></thead>
+<tbody>
+<tr><td><strong>Authority</strong></td><td>"I'm calling from the CBI." "This is the customs department." "Your bank's fraud desk."</td></tr>
+<tr><td><strong>Threat</strong></td><td>"An arrest warrant has been issued." "Your account will be frozen within two hours."</td></tr>
+<tr><td><strong>Isolation</strong></td><td>"Don't tell anyone, not even family." "Stay on the video call." "You are under digital arrest."</td></tr>
+<tr><td><strong>Money and remote access</strong></td><td>"Transfer to this safe custody account." "Install AnyDesk and share your screen."</td></tr>
+<tr><td><strong>Credentials</strong></td><td>"Read me the OTP." "Confirm your UPI PIN."</td></tr>
+</tbody>
+</table>
+</div>
+
+<h3>Why it doesn't shout at your actual bank</h3>
+<p>A real fraud desk trips two of those tactics honestly. It claims authority, and it creates some urgency about a suspicious transaction. So Kavach also carries 40 phrases that <em>subtract</em> points, because only a real institution says them: "we will never ask for your OTP", "call us back on the number on your card", "visit your nearest branch", "take your time".</p>
+<p>On our test set, four genuine calls stay in the low twenties. The scam scripts hit 84 to 100.</p>
+</section>
+
+<section id="scoring">
+<h2>How it scores</h2>
+<p class="sub">Deliberately simple arithmetic. Anyone can recompute a verdict by hand from the transcript, which is the point.</p>
+
+<ol class="body">
+<li>Every matched phrase adds its weight to its tactic family.</li>
+<li>Each family is capped, so one family can't run away with the score. Credentials caps at 30, authority at 28, money and remote access at 28, threat at 24, isolation at 22.</li>
+<li>Three different families add a bonus of 15 each beyond the second. Diversity is more diagnostic than volume.</li>
+<li>Guard phrases subtract, up to 35 points each.</li>
+<li>Everything decays with a two-minute half-life. A phrase from eight minutes ago counts for almost nothing.</li>
+<li>The total is clamped to 100, and the band follows the rules above.</li>
+</ol>
+
+<p>A worked example, from the demo script: the caller says "CBI" and "money laundering" (authority, 28). Then "arrest warrant" and "within two hours" (threat, 24). That's 52, two families, amber. Then "digital arrest" and "do not tell anyone" (isolation, 22) takes it to 74 plus a 15-point diversity bonus, three families, red. Twenty-four seconds of speech from the top of the call.</p>
+</section>
+
+<section id="technical">
+<h2>Technically</h2>
+
+<h3>The pipeline</h3>
+<p>Microphone to <code>AudioRecord</code>, into a fixed in-memory ring buffer. That buffer feeds Android's on-device speech recogniser through a pipe. The recogniser returns text, which goes to a pure-Kotlin engine: normalise, match against the lexicon, accumulate signals, score, publish one <code>StateFlow&lt;ShieldUiState&gt;</code> that both the UI and the foreground service observe.</p>
+
+<h3>Two tiers</h3>
+<p><strong>Tier 1</strong> is the deterministic matcher described above. Pure Kotlin, no Android imports, no ML, unit-tested on the JVM. It is designed so that it alone can carry the whole product if every model fails.</p>
+<p><strong>Tier 2</strong> is Gemma 4 E4B running on the phone's GPU through LiteRT-LM, asked every eight seconds to judge the rolling transcript and return strict JSON. Its verdict is schema-validated before it can touch the UI, and it is kept on a short leash: it can raise the score, never lower it; it can lift watching to amber on its own; it can <em>never</em> create a red warning. Red always requires three families the deterministic engine can point at.</p>
+
+<div class="callout red">
+<h4>Tier 2 is switched off in this build</h4>
+<p>LiteRT-LM 0.16.1 calls <code>SendChannel.close$default(...)</code> as a static method on the interface. Every kotlinx-coroutines release in the 1.9 to 1.10 line puts that bridge in <code>SendChannel$DefaultImpls</code> instead, so the call cannot link and the first completed inference throws <code>NoSuchMethodError</code>. We reproduced it twice on the iQOO, about six seconds after the engine reports ready.</p>
+<p>It lands on LiteRT-LM's own JNI callback thread, outside our coroutine, so no catch of ours can reach it and the process dies mid-call. Coroutines 1.10.2 crashes identically. LiteRT-LM 0.17.0-alpha1 needs Kotlin 2.4 metadata and we're pinned to 2.2. An adjudicator that kills the app during a scam call is worse than no adjudicator, so it is off behind one constant with the diagnosis beside it.</p>
+</div>
+
+<h3>Speech recognition</h3>
+<p>Android's on-device <code>SpeechRecognizer</code>, with <code>EXTRA_PREFER_OFFLINE</code>, alternating between <code>en-IN</code> and <code>hi-IN</code> between utterances. Indian scam calls code-switch mid-sentence, and one recogniser cannot cover both scripts. Running two at once returns <code>ERROR_RECOGNIZER_BUSY</code>, so we alternate instead. The lexicon carries markers in both Latin and Devanagari because the recogniser emits either depending on the language.</p>
+</section>
+
+<section id="decisions">
+<h2>Decisions and why</h2>
+<p class="sub">Each of these was forced by a constraint rather than chosen from a menu. That's usually the more interesting half of the answer.</p>
+
+<div class="dec">
+<p class="why">Constraint · Android blocks call audio</p>
+<h4>We capture the room, not the call</h4>
+<p><code>MediaRecorder.AudioSource.VOICE_CALL</code> has needed a privileged permission since Android 10, and <code>CallScreeningService</code> gives you the caller's number and no audio at all. So Kavach records ambient sound. On speakerphone it hears both halves; on earpiece it hears only yours. We say this out loud rather than let anyone discover it.</p>
+</div>
+
+<div class="dec">
+<p class="why">Constraint · Android mutes apps during calls</p>
+<h4>An accessibility service, and four conditions</h4>
+<p>During a call, an ordinary app's microphone returns frames of zeroes. No error, no log line. The one exemption a non-privileged app can reach is documented on developer.android.com: an accessibility service whose UI is on top keeps receiving audio.</p>
+<p>Four things must all be true. An enabled accessibility service in our package. Audio source <code>VOICE_RECOGNITION</code>, not <code>MIC</code>. Our UI on top, which is why the shield stays on screen for the whole call. And we must own the <code>AudioRecord</code> ourselves, because the exemption is keyed to the UID that opened it. Letting the recogniser open the microphone is the obvious implementation and it is silenced mid-call.</p>
+<p>Our accessibility service reads nothing. <code>onAccessibilityEvent</code> is empty and <code>canRetrieveWindowContent</code> is false. It exists to put our UID on a list.</p>
+</div>
+
+<div class="dec">
+<p class="why">Constraint · the privacy claim has to be checkable</p>
+<h4>No INTERNET permission, enforced by CI</h4>
+<p>The manifest strips <code>android.permission.INTERNET</code> with <code>tools:node="remove"</code>, and a Gradle task fails the build if it appears in the merged manifest, including transitively from a dependency. Anyone can verify it in ten seconds. That's why the 2.97 GB model is downloaded by the browser and handed back through the file picker, verified by SHA-256 on the way in. The app cannot fetch anything.</p>
+</div>
+
+<div class="dec">
+<p class="why">Constraint · a false alarm costs more than a miss</p>
+<h4>Three different families, not a high score</h4>
+<p>This is the main false-positive defence and it's a hard rule rather than a tuned threshold. A single family, however loud, caps at amber. On eight genuine calls, including a real police officer discussing an FIR and a courier legitimately asking for an OTP, the false-positive rate is zero.</p>
+</div>
+
+<div class="dec">
+<p class="why">Constraint · a frightened person needs a reason, not a number</p>
+<h4>Every warning names its evidence</h4>
+<p>"87% risk" is unfalsifiable. "This caller claims to be police and is asking for your OTP" can be checked against the conversation in one second. Red is only reachable when there are three named families to show, and the model is refused if it returns a verdict with no tactics.</p>
+</div>
+
+<div class="dec">
+<p class="why">Constraint · audio is the most sensitive thing on a phone</p>
+<h4>Nothing touches disk</h4>
+<p>Audio lives in a fixed in-memory ring buffer and is overwritten. No file, no cache directory, no upload. The transcript preview is in memory for the length of the session. The saved incident log holds timestamps, tactic IDs and scores, never audio and never speech.</p>
+</div>
+
+<div class="dec">
+<p class="why">Constraint · the phone must stay usable</p>
+<h4>The shield is a band, not a screen</h4>
+<p>The warning overlay was originally a full-screen window that only painted a strip at the top. Android stamps every touch bound for the app underneath with <code>FLAG_WINDOW_IS_OBSCURED</code>, and OEM dialers discard those, so the phone looked alive and answered nothing, including the button that picks up the call. The passive shield is now physically 280dp tall and only grows to full screen when the verdict turns red.</p>
+</div>
+
+<div class="dec">
+<p class="why">Constraint · it is advice, not authority</p>
+<h4>Advisory only, always</h4>
+<p>Kavach never calls <code>endCall()</code>, never auto-rejects, never blocks a number without an explicit tap, never initiates a payment. It offers to dial 1930 using <code>ACTION_DIAL</code>, which pre-fills the number and waits for the user to press the green button.</p>
+</div>
+
+<div class="dec">
+<p class="why">Constraint · thirty hours</p>
+<h4>No Hilt, no Room, no Retrofit, no instrumented tests</h4>
+<p>Manual constructor injection, one <code>StateFlow</code>, JVM unit tests for the domain layer and manual testing on the physical device. The annotation processors cost more build time than they save at this size.</p>
+</div>
+</section>
+
+<section id="asked">
+<h2>Questions you'll get</h2>
+
+<div class="qa">
+<h4>Is this actually AI, or just keyword matching?</h4>
+<p>Today, on this build, the decision is keyword matching, and we'd rather say so than dress it up. The deterministic engine makes every call. Speech-to-text is machine learning, but it's Google's on-device model, not ours. The Gemma layer is built, loads on the GPU in about eight seconds, and is switched off because of the crash described above.</p>
+<p>The stronger claim is the one that's true: the decision is a deterministic rule engine, so it is auditable, explainable, and cannot hallucinate a warning at a frightened person. The LLM was designed as a second opinion that can never raise an alarm the rules can't justify.</p>
+</div>
+
+<div class="qa">
+<h4>Why not just use an LLM for everything?</h4>
+<p>Three reasons. A 2.97 GB model takes eight seconds to load and seconds per inference, which is too slow to be the only thing standing between someone and a wire transfer. A model can be wrong in ways you can't predict or explain to a scared person. And if the model fails to load on the judge's device, a model-only product has nothing to show. The rules run in microseconds and always run.</p>
+</div>
+
+<div class="qa">
+<h4>How do you know it works?</h4>
+<p>A fixture corpus of eighteen scripted conversations, ten scams and eight genuine calls, replayed line by line through the real engine on every build. Ten of ten scams reach red. Zero of eight genuine calls do. The test prints the false-positive rate and the seconds-of-speech to each band on every run, so a change that makes detection slower or noisier fails the build.</p>
+</div>
+
+<div class="qa">
+<h4>Doesn't an accessibility service mean you can read my screen?</h4>
+<p>It would if we asked for that. We don't. <code>canRetrieveWindowContent</code> is false, there's no <code>flagRetrieveInteractiveWindows</code>, no key-event filtering, and <code>onAccessibilityEvent</code> discards every event it's handed. The declaration is the narrowest one Android will accept for a registered service. It exists to put our UID on the audio policy's exemption list.</p>
+</div>
+
+<div class="qa">
+<h4>How does it know a call started without reading my notifications?</h4>
+<p>It watches <code>AudioManager</code>'s mode. One integer. It moves to <code>MODE_RINGTONE</code> when the phone rings and <code>MODE_IN_CALL</code> or <code>MODE_IN_COMMUNICATION</code> when a call connects. It belongs to no app, reveals nothing about who is calling, and covers WhatsApp and Meet as well as cellular. Reading notifications would have required access to the text of every notification on the phone.</p>
+</div>
+
+<div class="qa">
+<h4>What about languages other than Hindi and English?</h4>
+<p>The lexicon is a JSON file, so a new language is data rather than code. The limit is the speech recogniser: it has to have an offline model for that language on the device. AI4Bharat's IndicConformer is the planned upgrade path for wider Indic coverage.</p>
+</div>
+
+<div class="qa">
+<h4>Can a scammer just avoid your phrases?</h4>
+<p>Partly, and that's an honest weakness of any lexicon. Two things blunt it. The phrases are the load-bearing parts of the script rather than incidental wording, so avoiding them means giving up the pressure that makes the scam work. And the diversity rule means paraphrasing one family isn't enough; they'd have to paraphrase three. The LLM tier exists precisely to catch what the word list has no word for, which is why getting it running is the top of the backlog.</p>
+</div>
+
+<div class="qa">
+<h4>Why not ship it on the Play Store?</h4>
+<p>Nothing here needs a store to work, but the accessibility declaration would need a review, and Google restricts that API sharply. That's a real product conversation rather than a hackathon one.</p>
+</div>
+</section>
+
+<section id="sms">
+<h2>SMS and message fraud</h2>
+<p class="sub">The most common question we get, and the answer has two halves: why it isn't in this build, and what it would take.</p>
+
+<h3>Why it isn't here yet</h3>
+<p>The hard part of this project was never the detection. It was getting a microphone to produce real audio during a live call on an Android 16 device, which took four separate discoveries about the audio policy and cost most of the build. We finished that yesterday and have the logs to prove it: at audio mode 3, <code>silenced=false</code>.</p>
+<p>Adding SMS would have meant starting a second vertical slice before the first one ran end to end. The rule we set ourselves was one slice at a time, and we'd rather show one thing working than two things half working.</p>
+<p>There's also a permission cost. Reading messages needs <code>RECEIVE_SMS</code> or <code>READ_SMS</code>, both restricted, and Google Play grants them mainly to default SMS handlers. For an app whose headline claim is that it reads as little as possible, that's a real trade rather than a free feature.</p>
+
+<h3>How it would work</h3>
+<p>Most of it already exists, which is the interesting part.</p>
+
+<h4>1. The detection engine needs no changes</h4>
+<p>The scoring engine is pure Kotlin with no Android imports. It takes text and returns a verdict. A message is text. <code>TranscriptNormalizer</code>, <code>TacticMatcher</code> and <code>SignalAggregator</code> would score an SMS exactly as they score a transcript, with the same families, the same diversity rule, and the same guards. That's not a coincidence; the domain layer was kept Android-free so that it could be reused this way.</p>
+
+<h4>2. Half the link analysis is already written and unused</h4>
+<p><code>UpiLinkAnalyzer</code> sits in the domain layer today, fully unit-tested, wired to nothing. It flags four things in a payment link or QR: a collect request disguised as a payment to you, a payee handle that disagrees with the displayed merchant name, a shortener or redirect chain in a payment context, and punycode or homoglyph lookalike domains. It was built for the QR-guard feature and never connected. An SMS scanner is the natural home for it.</p>
+
+<h4>3. What would actually need building</h4>
+<div class="scroll">
+<table>
+<thead><tr><th>Piece</th><th>Work</th></tr></thead>
+<tbody>
+<tr><td>A <code>BroadcastReceiver</code> on <code>SMS_RECEIVED_ACTION</code></td><td class="num">Small</td></tr>
+<tr><td>A message-specific lexicon slice: fake KYC links, parcel-held-at-customs texts, loan-app harassment, refund links, lottery wins</td><td class="num">Half a day, plus fixtures</td></tr>
+<tr><td>Sender-ID checks: a real bank sends from a DLT header like <code>VM-HDFCBK</code>, not a 10-digit mobile number</td><td class="num">Small, high signal</td></tr>
+<tr><td>Wiring <code>UpiLinkAnalyzer</code> to URLs found in the body</td><td class="num">Small</td></tr>
+<tr><td>An advisory notification, and a screen listing what was flagged and why</td><td class="num">A day</td></tr>
+</tbody>
+</table>
+</div>
+
+<h4>4. Where messages are easier than calls, and where they're harder</h4>
+<p>Easier: the text arrives perfectly, with no speech recognition to get wrong. It's one shot rather than a conversation, so there's no timing or decay to manage. And the link itself is often decisive evidence, which speech never gives you.</p>
+<p>Harder: a single SMS is short, so the diversity rule doesn't transfer directly. A fake KYC text might trip one family and a URL. The threshold would need its own tuning against its own fixture corpus, and we would not reuse the call thresholds by assumption. The link analysis carries more of the weight, and the phrase matching less.</p>
+
+<div class="callout cy">
+<h4>The honest estimate</h4>
+<p>Two days for a version we'd trust, most of it spent building the message fixture corpus rather than writing code. The engine, the link analyser, the scoring, the UI language and the safety rules all transfer unchanged.</p>
+</div>
+</section>
+
+<section id="limits">
+<h2>What it can't do</h2>
+<p class="sub">Worth saying before someone finds out on stage.</p>
+<ul>
+<li><strong>Earpiece calls.</strong> It hears your half only. Speakerphone or a video call is where it works, which happens to be the posture digital-arrest scams demand anyway.</li>
+<li><strong>Headsets.</strong> Almost nothing reaches the microphone. Kavach detects this and says so rather than showing a calm screen.</li>
+<li><strong>Tier 2 is off</strong> in this build, for the crash documented above.</li>
+<li><strong>The corpus is eighteen conversations.</strong> Small. We say so before anyone asks.</li>
+<li><strong>Whisper on the NPU isn't built.</strong> We use Android's on-device recogniser. The Qualcomm AI Hub export is the planned upgrade, not a shipped one.</li>
+<li><strong>Every call triggers the shield.</strong> There's no contact allowlist yet, so a call from your mother raises it too. That's the next slice.</li>
+<li><strong>It is advice.</strong> Silence from Kavach is not proof a call is safe, and the app says that on every screen.</li>
+</ul>
+</section>
+
+<footer>
+<p>Detection rules live in <code>data/tactic_lexicon.json</code>, version 1.3.0: five families, 170 phrases, 40 guard phrases. The scoring engine is <code>domain/</code>, pure Kotlin and JVM-testable. Numbers on this page come from <code>FixtureCorpusTest</code>, which prints the false-positive rate and escalation latency on every build.</p>
+</footer>
+
+</main>
+</div>
+</div>

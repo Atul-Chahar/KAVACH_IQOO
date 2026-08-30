@@ -1,0 +1,9 @@
+# expected: BELOW HIGH_RISK (<70) | a REAL bank asking for a KYC update
+# Trips the authority family the way a real fraud desk does, then defuses itself.
+CALLER: Good morning, I am from your bank's fraud monitoring team. Your KYC documents are due for their periodic update.
+VICTIM: Do I need to do something online?
+CALLER: No. Please visit your nearest branch with your ID at any time in the next month. There is no deadline pressure and nothing is blocked.
+VICTIM: Can you not do it over the phone?
+CALLER: We will never ask for your OTP, PIN or password over a call, so no. If you would rather confirm this is us, you can call us back on the number on your card.
+VICTIM: That is reassuring.
+CALLER: Your reference number for this call is 90218. Take your time, and you can discuss with your family before visiting.

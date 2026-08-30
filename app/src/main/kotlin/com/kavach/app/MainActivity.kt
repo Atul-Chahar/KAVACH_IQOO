@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -17,6 +18,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -30,6 +32,7 @@ import com.kavach.app.setup.Readiness
 import com.kavach.app.setup.Rung
 import com.kavach.app.ui.FixturePickerDialog
 import com.kavach.app.ui.KavachTheme
+import com.kavach.app.ui.MessageCheckingScreen
 import com.kavach.app.ui.MessageGuardScreen
 import com.kavach.app.ui.ModelSetupScreen
 import com.kavach.app.ui.ReadinessScreen
@@ -55,8 +58,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        sharedMessage = intent.sharedPlainText()
-        messageGuardRequested = intent.action == ACTION_MESSAGE_GUARD
+        consume(intent)
         setContent {
             KavachTheme {
                 KavachApp(
@@ -73,8 +75,36 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        sharedMessage = intent.sharedPlainText()
-        if (intent.action == ACTION_MESSAGE_GUARD) messageGuardRequested = true
+        consume(intent)
+    }
+
+    /**
+     * Reads a launch intent once and then defuses it.
+     *
+     * An Activity's intent outlives the Activity instance: every recreation —
+     * a rotation, a theme change, a font-size change — runs [onCreate] again
+     * against the *same* Intent. Without clearing the action, backing out of
+     * Message Guard and rotating the phone put the user straight back into
+     * Message Guard, and there was no way out of it but to kill the app. The
+     * shared-message screen had the same trap.
+     */
+    private fun consume(intent: Intent) {
+        when (intent.action) {
+            ACTION_MESSAGE_GUARD -> {
+                messageGuardRequested = true
+                intent.action = null
+            }
+            Intent.ACTION_SEND -> {
+                sharedMessage = intent.sharedPlainText()
+                intent.action = null
+                intent.removeExtra(Intent.EXTRA_TEXT)
+            }
+            // Anything else — the launcher's MAIN/LAUNCHER intent above all — is
+            // left exactly as it is. An earlier version cleared the action
+            // unconditionally, which meant a plain app launch had its own intent
+            // rewritten underneath it for no reason at all.
+            else -> Unit
+        }
     }
 
     companion object {
@@ -131,6 +161,7 @@ private fun MessageResultRoute(
 ): Boolean {
     if (result == null) return false
     val context = LocalContext.current
+    BackHandler(onBack = onClose)
     SmsAnalysisScreen(result = result, onBack = onClose, onCall1930 = { dial1930(context) })
     return true
 }
@@ -148,11 +179,21 @@ private fun MessageGuardRoute(
     onClose: () -> Unit,
 ): Boolean {
     if (!active) return false
+    // Without this the system back button finishes the Activity outright, so a
+    // user who arrived from a lock-screen warning is thrown out of the app
+    // rather than back to the home screen they never saw.
+    BackHandler(onBack = onClose)
     val detections by app.messageGuard.detections.collectAsStateWithLifecycle()
+    val connected by app.messageGuard.connected.collectAsStateWithLifecycle()
+
+    // Opening the centre is what clears the home badge.
+    LaunchedEffect(Unit) { app.messageGuard.markReviewed() }
+
     MessageGuardScreen(
-        enabled = rememberMessageNotificationAccess(context),
+        granted = rememberMessageNotificationAccess(context),
+        connected = connected,
         detections = detections,
-        onEnable = { context.startActivity(MessageGuardAccess.settingsIntent(context)) },
+        onEnable = { runCatching { context.startActivity(MessageGuardAccess.settingsIntent(context)) } },
         onOpenDetection = onOpenDetection,
         onBack = onClose,
     )
@@ -169,6 +210,8 @@ private fun HomeRoute(
     onOpenMessageGuard: () -> Unit,
 ) {
     val context = LocalContext.current
+    val app = context.applicationContext as KavachApplication
+    val unreviewedMessages by app.messageGuard.unreviewed.collectAsStateWithLifecycle()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val modelState by viewModel.modelState.collectAsStateWithLifecycle()
     val capabilities = rememberCapabilities(context)
@@ -217,6 +260,7 @@ private fun HomeRoute(
     ShieldRoute(
         viewModel = viewModel,
         capabilities = capabilities,
+        unreviewedMessages = unreviewedMessages,
         actions =
             HomeActions(
                 startLive = { permissionLauncher.launch(requiredPermissions()) },
@@ -235,6 +279,15 @@ private fun HomeRoute(
     }
 }
 
+/**
+ * A message shared into Kavach from another app.
+ *
+ * The analysis runs in [produceState] on [Dispatchers.Default], not in a
+ * `remember` block. `remember` computes during composition — on the main
+ * thread — and keying it on `app.lexicon` also forced the lazy lexicon parse
+ * there, so opening a ten-thousand-character share stalled the first frame.
+ * Until the result arrives the screen says it is checking, which is true.
+ */
 @Composable
 private fun SmsShareRoute(
     message: String?,
@@ -243,12 +296,20 @@ private fun SmsShareRoute(
 ): Boolean {
     if (message == null) return false
     val context = LocalContext.current
-    val result = remember(message, app.lexicon) { SmsMessageAnalyzer(app.lexicon).analyze(message) }
-    SmsAnalysisScreen(result = result, onBack = onClose, onCall1930 = { dial1930(context) })
+    BackHandler(onBack = onClose)
+    val result by produceState<SmsMessageAnalyzer.Result?>(initialValue = null, message) {
+        value = withContext(Dispatchers.Default) { SmsMessageAnalyzer(app.lexicon).analyze(message) }
+    }
+    val settled = result
+    if (settled == null) {
+        MessageCheckingScreen(onBack = onClose)
+    } else {
+        SmsAnalysisScreen(result = settled, onBack = onClose, onCall1930 = { dial1930(context) })
+    }
     return true
 }
 
-/** The four things the home screen can navigate to, kept together so the route reads as one. */
+/** The five things the home screen can navigate to, kept together so the route reads as one. */
 private data class HomeActions(
     val startLive: () -> Unit,
     val startDemo: () -> Unit,
@@ -262,6 +323,7 @@ private data class HomeActions(
 private fun ShieldRoute(
     viewModel: ShieldViewModel,
     capabilities: List<Capability>,
+    unreviewedMessages: Int,
     actions: HomeActions,
 ) {
     val context = LocalContext.current
@@ -276,6 +338,7 @@ private fun ShieldRoute(
         onStop = viewModel::stop,
         onOpenReport = actions.openReport,
         onOpenMessageGuard = actions.openMessageGuard,
+        unreviewedMessages = unreviewedMessages,
         onOpenModelSetup = actions.openModelSetup,
         onToggleTranscript = viewModel::setShowTranscript,
         onDismissAlert = viewModel::dismissAlert,

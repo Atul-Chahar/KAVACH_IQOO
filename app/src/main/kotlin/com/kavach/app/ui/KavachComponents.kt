@@ -376,6 +376,8 @@ fun PaperTile(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     tint: Color = KavachTokens.Cyan,
+    /** Optional count chip, for a tile with something waiting behind it. */
+    badge: String? = null,
 ) {
     Column(
         modifier
@@ -385,7 +387,24 @@ fun PaperTile(
             .padding(horizontal = 18.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        PhosphorGlyph(icon, 26.dp, tint)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            PhosphorGlyph(icon, 26.dp, tint)
+            if (badge != null) {
+                Spacer(Modifier.weight(1f))
+                Box(
+                    Modifier
+                        .clip(RoundedCornerShape(9.dp))
+                        .background(tint)
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                ) {
+                    Text(
+                        badge,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = KavachTokens.Card,
+                    )
+                }
+            }
+        }
         Column {
             Text(title, style = MaterialTheme.typography.labelLarge, color = KavachTokens.Ink)
             Text(subtitle, style = MaterialTheme.typography.labelSmall, color = KavachTokens.InkMuted)

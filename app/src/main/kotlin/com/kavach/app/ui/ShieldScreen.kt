@@ -1,6 +1,7 @@
 package com.kavach.app.ui
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -36,7 +37,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -64,7 +68,9 @@ import com.kavach.app.monitor.TacticEvidence
 import com.kavach.app.setup.Capability
 import com.kavach.domain.RiskAssessment
 import com.kavach.domain.RiskBand
+import kotlinx.coroutines.delay
 import java.util.Locale
+import kotlin.math.pow
 import kotlin.math.sin
 
 /**
@@ -93,6 +99,7 @@ fun ShieldScreen(
     onOpenMessageGuard: () -> Unit,
     onOpenModelSetup: () -> Unit,
     modifier: Modifier = Modifier,
+    unreviewedMessages: Int = 0,
     onToggleTranscript: (Boolean) -> Unit = {},
     onDismissAlert: () -> Unit = {},
     onCall1930: () -> Unit = {},
@@ -109,6 +116,7 @@ fun ShieldScreen(
             onStartDemo,
             onOpenReport,
             onOpenMessageGuard,
+            unreviewedMessages,
             onOpenModelSetup,
             modelInstalled,
             capabilities,
@@ -129,6 +137,7 @@ private fun HomeSurface(
     onStartDemo: () -> Unit,
     onOpenReport: () -> Unit,
     onOpenMessageGuard: () -> Unit,
+    unreviewedMessages: Int,
     onOpenModelSetup: () -> Unit,
     modelInstalled: Boolean,
     capabilities: List<Capability>,
@@ -193,6 +202,12 @@ private fun HomeSurface(
                 onClick = onOpenMessageGuard,
                 tint = KavachTokens.MagentaDeep,
                 modifier = Modifier.fillMaxWidth(),
+                // Only ever a count of warnings, never of messages: the store
+                // does not keep the ones it found nothing wrong with.
+                badge =
+                    unreviewedMessages
+                        .takeIf { it > 0 }
+                        ?.let { stringResource(R.string.message_guard_badge, it) },
             )
 
             Gap(12.dp)
@@ -1172,17 +1187,58 @@ private fun HearingLine(
  * over a muted microphone would be decoration that reads as reassurance, which
  * is the false all-clear docs/SAFETY.md forbids — so the animation is allowed to
  * be pretty only while it is also true.
+ *
+ * Three things make it legible rather than merely correct, all of which it
+ * lacked on device, where it sat nearly still through an entire call:
+ *
+ * 1. **A speech-shaped scale.** The old mapping spread -60..0 dBFS across the
+ *    full height. Nothing in a room ever reaches 0 dBFS, and a phone hearing a
+ *    call at arm's length sits around -45 dB, so every bar lived in the bottom
+ *    quarter and the loud/quiet difference was a few pixels. The window is now
+ *    [WAVE_DB_FLOOR]..[WAVE_DB_CEILING] — the range speech actually occupies —
+ *    with a gamma curve that lifts the quiet half. Both ends still saturate
+ *    honestly: silence is flat, and clipping is full height.
+ * 2. **Attack and release, not a tween.** [MicCapture] reports every 20 ms, so
+ *    a 260 ms `animateFloatAsState` was re-targeted thirteen times before it
+ *    could finish once and never travelled more than a fraction of the way —
+ *    a low-pass filter that erased exactly the movement it was meant to show.
+ *    It rises in [LEVEL_ATTACK_MS] and falls in [LEVEL_RELEASE_MS], which is
+ *    how a meter behaves and why a voice reads as a voice.
+ * 3. **A sliding history.** Every bar used to carry the same number, so a
+ *    steady speaker drew a static block. Each bar now holds the level from one
+ *    [WAVE_STEP_MS] tick further back, and the row is the last second or so of
+ *    the microphone travelling leftwards.
  */
 @Composable
 private fun Waveform(
     color: Color,
     capture: CaptureState,
 ) {
-    val level by animateFloatAsState(
-        targetValue = captureLevel(capture),
-        animationSpec = tween(LEVEL_ANIM_MS),
-        label = "wave-level",
-    )
+    val target = captureLevel(capture)
+    val level = remember { Animatable(0f) }
+    LaunchedEffect(target) {
+        val rising = target > level.value
+        level.animateTo(
+            targetValue = target,
+            animationSpec =
+                tween(
+                    durationMillis = if (rising) LEVEL_ATTACK_MS else LEVEL_RELEASE_MS,
+                    easing = LinearEasing,
+                ),
+        )
+    }
+
+    // Oldest at index 0, newest at the right-hand end. Seeded flat so a screen
+    // opened before the first frame arrives shows a line, not invented audio.
+    val history = remember { mutableStateListOf<Float>().also { list -> repeat(WAVE_BARS) { list.add(0f) } } }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(WAVE_STEP_MS)
+            history.removeAt(0)
+            history.add(level.value)
+        }
+    }
+
     val transition = rememberInfiniteTransition(label = "wave")
     val phase by transition.animateFloat(
         initialValue = 0f,
@@ -1201,8 +1257,11 @@ private fun Waveform(
                 Modifier
                     .weight(1f)
                     .fillMaxHeight()
+                    // Read inside the layer block, not in composition: eighteen
+                    // bars re-measured at 60 Hz would be the most expensive
+                    // thing on the screen. This only re-draws them.
                     .graphicsLayer {
-                        val height = barHeight(index, phase, level)
+                        val height = barHeight(history[index], index, phase)
                         scaleY = height
                         alpha = WAVE_MIN_ALPHA + height * (1f - WAVE_MIN_ALPHA)
                         transformOrigin = TransformOrigin(0.5f, 1f)
@@ -1213,28 +1272,37 @@ private fun Waveform(
 }
 
 /**
- * Two out-of-phase sines per bar, so the wave travels instead of pulsing in
- * unison. [level] scales the whole thing, which is what collapses it to a flat
- * line when the microphone is delivering nothing.
+ * One bar: how loud the microphone was [index] ticks ago, with a shimmer.
+ *
+ * [level] is the whole amplitude, so the row collapses to a flat line when the
+ * microphone is delivering nothing — the honesty constraint above. The two
+ * out-of-phase sines only ever ripple the top [WAVE_BASE]..1 of that amplitude,
+ * so a held note still breathes rather than freezing into a plateau, and no
+ * shimmer can lift a silent bar off the floor.
  */
 private fun barHeight(
+    level: Float,
     index: Int,
     phase: Float,
-    level: Float,
 ): Float {
     val slow = 0.5f + 0.5f * sin(phase + index * WAVE_SPREAD_A)
     val fast = 0.5f + 0.5f * sin(phase * WAVE_BEAT + index * WAVE_SPREAD_B)
-    val shape = WAVE_MIX * slow + (1f - WAVE_MIX) * fast
-    return (WAVE_FLOOR + shape * level * (1f - WAVE_FLOOR)).coerceIn(WAVE_FLOOR, 1f)
+    val shimmer = WAVE_BASE + (1f - WAVE_BASE) * (WAVE_MIX * slow + (1f - WAVE_MIX) * fast)
+    return (WAVE_FLOOR + level * shimmer * (1f - WAVE_FLOOR)).coerceIn(WAVE_FLOOR, 1f)
 }
 
 /**
  * dBFS to a 0..1 bar height. Digital silence is negative infinity and lands
  * flat, which is the case this mapping exists to render honestly.
+ *
+ * The window is the one speech occupies through a phone at conversational
+ * distance, not the full digital range: see [Waveform].
  */
 private fun captureLevel(capture: CaptureState): Float {
     if (!capture.hearing || !capture.rmsDb.isFinite()) return 0f
-    return ((capture.rmsDb + WAVE_DB_FLOOR) / WAVE_DB_FLOOR).toFloat().coerceIn(0f, 1f)
+    val span = WAVE_DB_CEILING - WAVE_DB_FLOOR
+    val fraction = ((capture.rmsDb - WAVE_DB_FLOOR) / span).toFloat().coerceIn(0f, 1f)
+    return fraction.pow(WAVE_GAMMA)
 }
 
 @Composable
@@ -1288,8 +1356,7 @@ private const val TRANSCRIPT_WASH = 0.10f
 
 /** Waveform. */
 private const val WAVE_BARS = 18
-private const val WAVE_PERIOD_MS = 1_900
-private const val LEVEL_ANIM_MS = 260
+private const val WAVE_PERIOD_MS = 1_500
 private const val TWO_PI = 6.2831855f
 private const val WAVE_FLOOR = 0.06f
 private const val WAVE_MIN_ALPHA = 0.32f
@@ -1297,7 +1364,30 @@ private const val WAVE_SPREAD_A = 0.55f
 private const val WAVE_SPREAD_B = 0.31f
 private const val WAVE_BEAT = 1.7f
 private const val WAVE_MIX = 0.6f
-private const val WAVE_DB_FLOOR = 60.0
+
+/** The shimmer rides the top 38% of the amplitude; the rest tracks the microphone. */
+private const val WAVE_BASE = 0.62f
+
+/** How fast a bar rises to a new peak, and how slowly it falls back. */
+private const val LEVEL_ATTACK_MS = 70
+private const val LEVEL_RELEASE_MS = 420
+
+/** One bar per tick: eighteen bars is a shade under a second of history. */
+private const val WAVE_STEP_MS = 55L
+
+/**
+ * The dBFS window the bars span.
+ *
+ * Room tone with nobody speaking measures about -58 dB on the iQOO; a voice on
+ * speakerphone at arm's length runs -45 to -25; holding the phone to the mic
+ * clips near -14. Mapping that range rather than the full -60..0 is the
+ * difference between bars that visibly answer a voice and bars that do not.
+ */
+private const val WAVE_DB_FLOOR = -58.0
+private const val WAVE_DB_CEILING = -14.0
+
+/** Below 1, so the quiet half of the window gets more of the height than a linear map gives it. */
+private const val WAVE_GAMMA = 0.65f
 
 private fun elapsed(ms: Long): String {
     val totalSeconds = (ms / 1000L).coerceAtLeast(0L)
