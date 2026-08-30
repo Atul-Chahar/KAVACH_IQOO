@@ -89,10 +89,22 @@ class MainActivity : ComponentActivity() {
      * shared-message screen had the same trap.
      */
     private fun consume(intent: Intent) {
-        sharedMessage = intent.sharedPlainText()
-        if (intent.action == ACTION_MESSAGE_GUARD) messageGuardRequested = true
-        intent.action = null
-        intent.removeExtra(Intent.EXTRA_TEXT)
+        when (intent.action) {
+            ACTION_MESSAGE_GUARD -> {
+                messageGuardRequested = true
+                intent.action = null
+            }
+            Intent.ACTION_SEND -> {
+                sharedMessage = intent.sharedPlainText()
+                intent.action = null
+                intent.removeExtra(Intent.EXTRA_TEXT)
+            }
+            // Anything else — the launcher's MAIN/LAUNCHER intent above all — is
+            // left exactly as it is. An earlier version cleared the action
+            // unconditionally, which meant a plain app launch had its own intent
+            // rewritten underneath it for no reason at all.
+            else -> Unit
+        }
     }
 
     companion object {

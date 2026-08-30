@@ -176,15 +176,20 @@ object MessageIslandOverlay {
                 PixelFormat.TRANSLUCENT,
             ).apply {
                 gravity = Gravity.TOP
-                y = statusBarHeight(context) + (TOP_MARGIN_DP * context.resources.displayMetrics.density).toInt()
+                y = (TOP_MARGIN_DP * context.resources.displayMetrics.density).toInt()
             }
 
-    private fun statusBarHeight(context: Context): Int {
-        val id = context.resources.getIdentifier("status_bar_height", "dimen", "android")
-        return if (id > 0) context.resources.getDimensionPixelSize(id) else 0
-    }
-
-    private const val TOP_MARGIN_DP = 6
+    /**
+     * How far below the status bar the capsule sits.
+     *
+     * Small, and measured from the window's own origin — not from the top of
+     * the display. A `TYPE_APPLICATION_OVERLAY` window is already laid out
+     * beneath the status bar unless it asks otherwise, so the first version's
+     * `statusBarHeight + margin` counted that inset twice: the capsule hung a
+     * full status bar too low, well clear of the punch-hole it is meant to sit
+     * under.
+     */
+    private const val TOP_MARGIN_DP = 4
 
     /**
      * The minimum lifecycle a [ComposeView] needs to compose outside an
