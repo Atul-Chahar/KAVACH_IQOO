@@ -76,8 +76,37 @@ The person seeing this alert is often elderly and **already frightened by the sc
 | Transcript is ephemeral | Rolling 60 s window, discarded on session end. |
 | Incident log is metadata | Timestamp, tactic IDs, score, duration. Never audio. Transcript retention is per-incident and opt-in. |
 | No telemetry | No analytics, no crash reporting, no third-party SDK of any kind. |
+| Message text is never stored | `MessageGuardStore` keeps the conversation label, the time, and the warning categories. The text is analysed and dropped in the same call. |
+| Messages Kavach clears leave no trace | A `CLEAR` result is not recorded at all — see §6.1. |
+| Kavach's own warnings carry no message text | The lock-screen warning contains the conversation name the messaging app is already showing, plus Kavach's own words. Nothing quoted. |
 
 `Test:` CI check + a code review pass on `capture/` before the freeze.
+
+### 6.1 Notification access is the largest permission Kavach asks for
+
+`BIND_NOTIFICATION_LISTENER_SERVICE` lets Kavach read **every** notification on
+the device, not just messages. That is more reach than anything else the app
+holds, and it is worth stating plainly rather than burying.
+
+What constrains it:
+
+- **Package filter first.** `onNotificationPosted` returns immediately unless the
+  posting package is a known messaging app or the device's resolved default SMS
+  app. Nothing else is read, and nothing else is even copied out of the bundle.
+- **Nothing is written down.** Findings live in process memory and die with the
+  process. There is no database, no file, no cache entry.
+- **Clear messages are not recorded.** This is a privacy property, not only a UI
+  one: a list of what Kavach did *not* flag is a list of who is messaging you.
+  It also stopped ordinary chat evicting real detections from the twelve visible
+  slots.
+- **"This is fine" is session-scoped.** Trusting a sender stops warnings about it
+  until the process ends. A permanent allow-list would have to live on disk, and
+  would be poisonable by anyone who borrows the phone for a minute.
+- **Still no network.** Everything above is moot without it, and hard rule 1
+  holds: no `INTERNET` permission, enforced by `assertNoInternetPermission`.
+
+Message Guard is **optional**. The call path works fully without it, and the
+screen says so rather than nagging.
 
 ---
 
@@ -88,6 +117,10 @@ The person seeing this alert is often elderly and **already frightened by the sc
 - Persistent notification while listening. Android mandates this for a `microphone` foreground service — treat it as a feature, not a nuisance.
 - One-tap stop, always reachable.
 - Default to monitoring **unknown callers only**; contacts excluded.
+- Message Guard is off until the user grants notification access in Android
+  Settings, which Android will not let the app do for itself. The screen
+  distinguishes "not granted" from "granted but Android has not bound us", and
+  never reports the second as if it were working.
 
 ---
 

@@ -92,7 +92,9 @@ fun SmsAnalysisScreen(
                 Gap(24.dp)
                 SmallCaps(stringResource(R.string.sms_evidence_heading), KavachTokens.InkSoft)
                 Gap(10.dp)
-                result.evidence.forEach { evidence -> EvidenceRow(stringResource(evidenceString(evidence)), palette) }
+                // Ranked, not detection order — the same ordering the lock-screen
+                // warning uses, so the two never disagree about what matters most.
+                result.ranked().forEach { evidence -> EvidenceRow(stringResource(evidenceString(evidence)), palette) }
             }
 
             Gap(24.dp)

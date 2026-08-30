@@ -34,6 +34,7 @@ An Android app that warns a person, in real time and entirely on-device, when th
 | P1 | Tier-2 on-device LLM adjudication returning schema-validated JSON | Never blocks UI; failure is invisible to the user |
 | P1 | Incident log — metadata only, exportable as a one-page report | Report opens on a laptop after Office Kit transfer |
 | P2 | UPI QR / payment-link safety check via camera | Flags the 4 patterns in `docs/ARCHITECTURE.md` §6 |
+| P1 | Message Guard — scores incoming message notifications with the Tier-1 lexicon and warns on the lock screen | 0% of `fixtures/negative/` reach HIGH_RISK on the message path (`SmsCorpusTest`); a warning can be reported or dismissed without opening the app |
 
 **Explicitly out of scope. Do not build these; say so before a judge asks.**
 
@@ -42,6 +43,8 @@ An Android app that warns a person, in real time and entirely on-device, when th
 - Languages beyond Hindi and English
 - Accounts, cloud sync, settings screens, onboarding carousels
 - Any claim of production-grade detection accuracy
+- Reading, sending, or storing SMS. Message Guard reads *notifications*, not the
+  SMS database, and holds no `READ_SMS` permission.
 
 ## 4. Users
 

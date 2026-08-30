@@ -93,6 +93,7 @@ fun ShieldScreen(
     onOpenMessageGuard: () -> Unit,
     onOpenModelSetup: () -> Unit,
     modifier: Modifier = Modifier,
+    unreviewedMessages: Int = 0,
     onToggleTranscript: (Boolean) -> Unit = {},
     onDismissAlert: () -> Unit = {},
     onCall1930: () -> Unit = {},
@@ -109,6 +110,7 @@ fun ShieldScreen(
             onStartDemo,
             onOpenReport,
             onOpenMessageGuard,
+            unreviewedMessages,
             onOpenModelSetup,
             modelInstalled,
             capabilities,
@@ -129,6 +131,7 @@ private fun HomeSurface(
     onStartDemo: () -> Unit,
     onOpenReport: () -> Unit,
     onOpenMessageGuard: () -> Unit,
+    unreviewedMessages: Int,
     onOpenModelSetup: () -> Unit,
     modelInstalled: Boolean,
     capabilities: List<Capability>,
@@ -193,6 +196,12 @@ private fun HomeSurface(
                 onClick = onOpenMessageGuard,
                 tint = KavachTokens.MagentaDeep,
                 modifier = Modifier.fillMaxWidth(),
+                // Only ever a count of warnings, never of messages: the store
+                // does not keep the ones it found nothing wrong with.
+                badge =
+                    unreviewedMessages
+                        .takeIf { it > 0 }
+                        ?.let { stringResource(R.string.message_guard_badge, it) },
             )
 
             Gap(12.dp)

@@ -13,7 +13,22 @@ import android.content.Context
 object KavachNotifications {
     const val CHANNEL_STATUS = "kavach_status_v3"
     const val CHANNEL_ALERT = "kavach_alerts_v3"
-    const val CHANNEL_MESSAGE_GUARD = "kavach_message_guard_v1"
+    const val CHANNEL_MESSAGE_GUARD = "kavach_message_guard_v2"
+
+    /**
+     * The same warning, posted quietly because the capsule is saying it instead.
+     *
+     * A second channel and not `setSilent(true)`, because heads-up is decided by
+     * channel importance and nothing else. Verified on the iQOO test unit: with
+     * `setSilent(true)` on the HIGH channel the heads-up still drew over the
+     * capsule, so the user was warned twice and could read it once. On a LOW
+     * channel the warning goes straight to the shade — still there, still on the
+     * lock screen, just not shouting over the surface that is already shouting.
+     */
+    const val CHANNEL_MESSAGE_GUARD_QUIET = "kavach_message_guard_quiet_v1"
+
+    /** Groups the message warnings under one summary so a burst collapses tidily. */
+    const val GROUP_MESSAGE_GUARD = "kavach_message_guard"
 
     /**
      * Channel ids this app has used before, deleted on every start.
@@ -30,12 +45,18 @@ object KavachNotifications {
      * So changing a channel's behaviour means retiring its id. Anything listed
      * here is removed before the current pair is created.
      */
-    private val RETIRED = listOf("kavach_monitoring", "kavach_status_v2", "kavach_alerts_v2")
+    private val RETIRED =
+        listOf("kavach_monitoring", "kavach_status_v2", "kavach_alerts_v2", "kavach_message_guard_v1")
 
     const val ONGOING_ID = 1001
     const val VERDICT_ID = 1002
     const val RAISE_ID = 1003
-    const val MESSAGE_WARNING_ID = 1004
+
+    /**
+     * The summary a burst of message warnings collapses into. The warnings
+     * themselves own ids from 1100 up — see MessageGuardStore.
+     */
+    const val MESSAGE_SUMMARY_ID = 1004
 
     /**
      * Channel settings are immutable once created, so the old single channel is
@@ -82,13 +103,33 @@ object KavachNotifications {
         )
         manager.createNotificationChannel(
             NotificationChannel(
+                CHANNEL_MESSAGE_GUARD_QUIET,
+                context.getString(com.kavach.app.R.string.message_channel_quiet_name),
+                NotificationManager.IMPORTANCE_LOW,
+            ).apply {
+                description = context.getString(com.kavach.app.R.string.message_channel_quiet_description)
+                setSound(null, null)
+                enableVibration(false)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+            },
+        )
+        manager.createNotificationChannel(
+            NotificationChannel(
                 CHANNEL_MESSAGE_GUARD,
                 context.getString(com.kavach.app.R.string.message_channel_name),
                 NotificationManager.IMPORTANCE_HIGH,
             ).apply {
                 description = context.getString(com.kavach.app.R.string.message_channel_description)
                 enableVibration(true)
-                lockscreenVisibility = android.app.Notification.VISIBILITY_PRIVATE
+                // PUBLIC, and it has to be. This notification is built to carry
+                // no message text at all — only the conversation label the
+                // messaging app is already showing, and Kavach's own words for
+                // why it is worried. PRIVATE redacted exactly that, so the lock
+                // screen showed "Contents hidden" and the user had to unlock and
+                // open the app to learn anything, which is the failure this
+                // whole surface exists to prevent. Nothing private is disclosed
+                // by saying it out loud, because nothing private is in it.
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
             },
         )
     }

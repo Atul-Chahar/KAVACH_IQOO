@@ -138,6 +138,19 @@
             </intent-filter>
         </service>
 
+        <!--
+          The message capsule is deliberately NOT declared here. It is a
+          TYPE_APPLICATION_OVERLAY window, not an Activity — see
+          ui/MessageIslandOverlay. An Activity, however small its window, pauses
+          whatever is underneath it, and taps below the capsule then reached
+          nothing for the nine seconds it was up. An overlay pauses nothing.
+        -->
+
+        <!-- "Report" and "This is fine", answered from the lock screen without opening Kavach. -->
+        <receiver
+            android:name=".message.MessageGuardActions$Receiver"
+            android:exported="false" />
+
         <service
             android:name=".message.MessageNotificationListener"
             android:exported="true"

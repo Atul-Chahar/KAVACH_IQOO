@@ -24,6 +24,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.kavach.app.R
 import com.kavach.app.message.MessageDetection
@@ -33,7 +34,8 @@ import java.util.Date
 
 @Composable
 fun MessageGuardScreen(
-    enabled: Boolean,
+    granted: Boolean,
+    connected: Boolean,
     detections: List<MessageDetection>,
     onEnable: () -> Unit,
     onOpenDetection: (MessageDetection) -> Unit,
@@ -73,7 +75,7 @@ fun MessageGuardScreen(
                 color = KavachTokens.InkSoft,
             )
             Gap(20.dp)
-            AccessCard(enabled, onEnable)
+            AccessCard(granted, connected, onEnable)
             Gap(24.dp)
             SmallCaps(stringResource(R.string.message_guard_recent), KavachTokens.InkSoft)
             Gap(10.dp)
@@ -100,12 +102,42 @@ fun MessageGuardScreen(
     }
 }
 
+/**
+ * Says what Message Guard is actually doing, which is not the same question as
+ * what the user granted.
+ *
+ * Three states, not two. Android unbinds notification listeners on its own and
+ * does not always rebind, so "the user granted notification access" and "we are
+ * being handed notifications" come apart — and when they do, the honest answer
+ * is the middle one. Reporting the grant as the capability is how this screen
+ * would end up claiming messages are checked while nothing is, which is the
+ * message-side version of a calm shield over a call we cannot hear.
+ */
 @Composable
 private fun AccessCard(
-    enabled: Boolean,
+    granted: Boolean,
+    connected: Boolean,
     onEnable: () -> Unit,
 ) {
-    val color = if (enabled) KavachTokens.Cyan else KavachTokens.Amber
+    val working = granted && connected
+    val color =
+        when {
+            working -> KavachTokens.Cyan
+            granted -> KavachTokens.PressRed
+            else -> KavachTokens.Amber
+        }
+    val title =
+        when {
+            working -> R.string.message_guard_on
+            granted -> R.string.message_guard_stalled
+            else -> R.string.message_guard_off
+        }
+    val body =
+        when {
+            working -> R.string.message_guard_on_body
+            granted -> R.string.message_guard_stalled_body
+            else -> R.string.message_guard_off_body
+        }
     Column(
         Modifier
             .fillMaxWidth()
@@ -114,20 +146,20 @@ private fun AccessCard(
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            PhosphorGlyph(if (enabled) Ph.shieldCheck else Ph.warning, 24.dp, color)
+            PhosphorGlyph(if (working) Ph.shieldCheck else Ph.warning, 24.dp, color)
             GapW(10.dp)
             Text(
-                stringResource(if (enabled) R.string.message_guard_on else R.string.message_guard_off),
+                stringResource(title),
                 style = MaterialTheme.typography.titleSmall,
                 color = KavachTokens.Ink,
             )
         }
         Text(
-            stringResource(if (enabled) R.string.message_guard_on_body else R.string.message_guard_off_body),
+            stringResource(body),
             style = MaterialTheme.typography.bodySmall,
             color = KavachTokens.InkSoft,
         )
-        if (!enabled) {
+        if (!working) {
             PillButton(
                 label = stringResource(R.string.message_guard_enable),
                 onClick = onEnable,
@@ -166,9 +198,12 @@ private fun DetectionCard(
                 color = KavachTokens.Ink,
             )
             Text(
-                formatTimestamp(detection.detectedAtMillis),
+                listOfNotNull(detection.conversation, formatTimestamp(detection.detectedAtMillis))
+                    .joinToString(" · "),
                 style = MaterialTheme.typography.labelSmall,
                 color = KavachTokens.InkMuted,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
         PhosphorGlyph(Ph.arrowRight, 18.dp, KavachTokens.InkMuted)
